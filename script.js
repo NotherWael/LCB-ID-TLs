@@ -196,7 +196,7 @@ function attachVoicelineListeners() {
       const currentGalleryHTML = dynamicContent.innerHTML;
 
       console.log('Background attribute:', parentLink.dataset.background);
-      console.log('data-page attribute:', parentLink.dataset.page); // Debug: log the page class
+      console.log('data-page attribute:', parentLink.dataset.page); // Critical for coloring
 
       const detailState = {
         type: 'voiceline',
@@ -215,7 +215,7 @@ function attachVoicelineListeners() {
       };
 
       console.log('Detail background after resolveUrl:', detailState.background);
-      console.log('Page class to apply:', detailState.pageClass); // Debug
+      console.log('Page class to apply:', detailState.pageClass);
 
       const currentPath = normalizePath(window.location.pathname);
       history.pushState(detailState, '', currentPath);
@@ -232,7 +232,7 @@ function showVoicelineDetailFromData(data) {
   const notes = (data.notes || "").split('|').map(v => v.trim());
   const pageClass = data.pageClass || ''; // e.g., "Sinclair-page"
 
-  console.log('Rendering voiceline detail with pageClass:', pageClass); // Debug
+  console.log('Rendering voiceline detail with pageClass:', pageClass);
 
   let rows = [];
   for (let i = 0; i < translations.length; i++) {
@@ -426,13 +426,20 @@ function loadInitialPage() {
   }
 }
 
-// ---------- Preload assets ----------
+// ---------- Preload assets (fixed to avoid 404s) ----------
 function preloadAllGalleryAssets() {
   document.querySelectorAll('.image-gallery a').forEach(link => {
+    // Use data-background for background images (already normalized)
     const bg = normalizePath(link.dataset.background);
     new Image().src = bg;
-    const imgSrc = link.querySelector('img').src;
-    new Image().src = imgSrc;
+    // For the main character icons, use the normalized data-background or fallback to src
+    const iconImg = link.querySelector('img');
+    if (iconImg) {
+      // Use the src attribute directly – it should be absolute
+      const iconSrc = iconImg.src;
+      console.log('Preloading icon:', iconSrc);
+      new Image().src = iconSrc;
+    }
   });
 
   const characterPages = Array.from(pageMap.keys());
