@@ -209,7 +209,8 @@ function attachVoicelineListeners() {
         translations: parentLink.dataset.translation,
         audios: parentLink.dataset.audio,
         notes: parentLink.dataset.notes,
-        background: resolveUrl(parentLink.dataset.background)
+        background: resolveUrl(parentLink.dataset.background),
+        pageClass: parentLink.dataset.page || '' // Add page class for coloring
       };
 
       console.log('Detail background after resolveUrl:', detailState.background);
@@ -227,6 +228,7 @@ function showVoicelineDetailFromData(data) {
   const translations = (data.translations || "").split('|').map(v => v.trim());
   const audios = (data.audios || "").split('|').map(v => v.trim());
   const notes = (data.notes || "").split('|').map(v => v.trim());
+  const pageClass = data.pageClass || ''; // e.g., "Sinclair-page"
 
   let rows = [];
   for (let i = 0; i < translations.length; i++) {
@@ -267,7 +269,7 @@ function showVoicelineDetailFromData(data) {
   }
 
   const detailHTML = `
-    <div class="voiceline-detail">
+    <div class="voiceline-detail ${pageClass}">
       <a href="${data.translationLink || '#'}" class="translation-link" target="_blank">
         Link to Already Translated Voicelines
       </a>
