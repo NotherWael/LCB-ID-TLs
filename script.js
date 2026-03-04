@@ -46,7 +46,6 @@ function setCharacterBackgroundFromPath(path) {
     const parts = normalized.split('/');
     const fileName = parts[parts.length - 1]; // e.g., "Faust.html"
     const charName = fileName.replace('.html', ''); // e.g., "Faust"
-    // Special handling for characters with special characters (they already match)
     const bgPath = BASE_PATH + 'assets/' + charName + '/LCB_' + charName + '.png';
     console.log('Using fallback background for', charName, bgPath);
     changeBackground(bgPath);
@@ -113,12 +112,27 @@ function showContent(html) {
   gallery.style.display = 'none';
   dynamicContent.innerHTML = html;
   dynamicContent.classList.add('visible');
-  // No preload here – handled elsewhere
-
+  // Attach hover sounds and voiceline listeners to the new content
+  attachImageHoverSounds();
   const charGallery = dynamicContent.querySelector('.character-gallery');
   if (charGallery) attachVoicelineListeners();
 }
 
+// Attach hover sounds to all images in dynamic content
+function attachImageHoverSounds() {
+  dynamicContent.querySelectorAll('img').forEach(img => {
+    // Remove old listener to avoid duplicates
+    img.removeEventListener('mouseenter', hoverHandler);
+    img.addEventListener('mouseenter', hoverHandler);
+  });
+}
+
+function hoverHandler(e) {
+  const hoverSound = hoverSoundTemplate.cloneNode();
+  hoverSound.play().catch(() => {});
+}
+
+// Load a character page using its absolute path
 function loadContent(absolutePath) {
   const normalizedPath = normalizePath(absolutePath);
   console.log('loadContent, normalizedPath:', normalizedPath);
@@ -157,7 +171,7 @@ function getPageClassFromURL() {
   return name + '-page';
 }
 
-// Attach click listeners to voiceline images
+// Attach click listeners to voiceline images inside the gallery
 function attachVoicelineListeners() {
   dynamicContent.querySelectorAll('.character-voice img').forEach(img => {
     img.addEventListener('click', (e) => {
@@ -172,6 +186,7 @@ function attachVoicelineListeners() {
       const parentLink = img.closest('.character-voice');
       const currentGalleryHTML = dynamicContent.innerHTML;
 
+      // Use data-page if present, otherwise fallback to URL-based class
       let pageClass = parentLink.dataset.page;
       if (!pageClass) {
         pageClass = getPageClassFromURL();
@@ -255,6 +270,8 @@ function showVoicelineDetailFromData(data) {
     </div>
   `;
   dynamicContent.innerHTML = detailHTML;
+  // Reattach hover sounds to the new detail view images
+  attachImageHoverSounds();
 }
 
 // ---------- History handling ----------
@@ -310,14 +327,6 @@ galleryLinks.forEach(link => {
     history.pushState({ type: 'character' }, '', href);
     loadContent(href);
   });
-
-  const img = link.querySelector('img');
-  if (img) {
-    img.addEventListener('mouseenter', () => {
-      const hoverSound = hoverSoundTemplate.cloneNode();
-      hoverSound.play().catch(() => {});
-    });
-  }
 });
 
 // ---------- Initial load ----------
@@ -345,6 +354,7 @@ function loadInitialPage() {
     dynamicContent.innerHTML = transformed;
     gallery.style.display = 'none';
     dynamicContent.classList.add('visible');
+    attachImageHoverSounds();
     attachVoicelineListeners();
     history.replaceState({ type: 'character_gallery', galleryHTML: transformed }, '', normalizedPath);
     setCharacterBackgroundFromPath(normalizedPath);
@@ -371,9 +381,9 @@ function loadInitialPage() {
 // ---------- Preload assets (absolute paths only) ----------
 function preloadMainGalleryIcons() {
   document.querySelectorAll('.image-gallery a').forEach(link => {
-    const bg = link.dataset.background;
+    const bg = link.dataset.background; // absolute
     new Image().src = bg;
-    const icon = link.querySelector('img').src;
+    const icon = link.querySelector('img').src; // absolute
     new Image().src = icon;
   });
 }
@@ -387,12 +397,3 @@ document.addEventListener('DOMContentLoaded', () => {
   preloadMainGalleryIcons();
   loadInitialPage();
 });
-
-// Dynamic hover for voicelines
-dynamicContent.addEventListener('mouseenter', (e) => {
-  const galleryImg = e.target.closest('.character-gallery img');
-  if (galleryImg) {
-    const hoverSound = hoverSoundTemplate.cloneNode();
-    hoverSound.play().catch(() => {});
-  }
-}, true);
