@@ -73,7 +73,7 @@ function makePathsAbsolute(html) {
   return doc.body.innerHTML;
 }
 
-// ---------- Resolve a URL (already absolute are left untouched) ----------
+// ---------- Resolve a URL to absolute (if relative) ----------
 function resolveUrl(url) {
   if (!url || url.startsWith('http') || url.startsWith('//') || url.startsWith('data:')) return url;
   if (url.startsWith(BASE_PATH)) return url;
@@ -150,7 +150,18 @@ function attachVoicelineListeners() {
       const parentLink = img.closest('.character-voice');
       const currentGalleryHTML = dynamicContent.innerHTML;
 
-      console.log('data-page attribute:', parentLink.dataset.page); // Should show something like "Faust-page"
+      // Try to get pageClass from data-page, else infer from URL
+      let pageClass = parentLink.dataset.page || '';
+      if (!pageClass) {
+        // Infer from current path: e.g., "/pages/Faust.html" -> "Faust-page"
+        const path = window.location.pathname;
+        const match = path.match(/\/pages\/([^\/]+)\.html$/);
+        if (match) {
+          const name = match[1];
+          // Convert name to proper class (e.g., "Ryōshū" -> "Ryōshū-page")
+          pageClass = name + '-page';
+        }
+      }
 
       const detailState = {
         type: 'voiceline',
@@ -165,7 +176,7 @@ function attachVoicelineListeners() {
         audios: parentLink.dataset.audio,
         notes: parentLink.dataset.notes,
         background: resolveUrl(parentLink.dataset.background),
-        pageClass: parentLink.dataset.page || ''
+        pageClass: pageClass
       };
 
       history.pushState(detailState, '', normalizePath(window.location.pathname));
@@ -336,10 +347,14 @@ function loadInitialPage() {
 // ---------- Preload assets (using absolute paths only) ----------
 function preloadAllGalleryAssets() {
   document.querySelectorAll('.image-gallery a').forEach(link => {
-    const bg = link.dataset.background; // already absolute
+    const bg = link.dataset.background; // should be absolute
     new Image().src = bg;
-    const icon = link.querySelector('img').src; // already absolute
-    new Image().src = icon;
+    const icon = link.querySelector('img');
+    if (icon) {
+      // Ensure icon src is absolute
+      const iconSrc = resolveUrl(icon.src);
+      new Image().src = iconSrc;
+    }
   });
 
   const characterPages = Array.from(pageMap.keys());
@@ -402,15 +417,6 @@ document.addEventListener('DOMContentLoaded', () => {
   preloadAllGalleryAssets();
   loadInitialPage();
 });
-
-// Dynamic hover for voicelines
-dynamicContent.addEventListener('mouseenter', (e) => {
-  const galleryImg = e.target.closest('.character-gallery img');
-  if (galleryImg) {
-    const hoverSound = hoverSoundTemplate.cloneNode();
-    hoverSound.play().catch(() => {});
-  }
-}, true);
 
 // Dynamic hover for voicelines
 dynamicContent.addEventListener('mouseenter', (e) => {
