@@ -294,9 +294,8 @@ window.addEventListener('popstate', (event) => {
 
 // ---------- Intercept character link clicks ----------
 galleryLinks.forEach(link => {
-  const img = link.querySelector('img');
-  img.addEventListener('click', (e) => {
-    e.preventDefault(); // Stop normal navigation
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
     console.log('Gallery link clicked'); // Debug
 
     if (canClickPlay) {
@@ -320,10 +319,14 @@ galleryLinks.forEach(link => {
     loadContent(absolutePath);
   });
 
-  img.addEventListener('mouseenter', () => {
-    const hoverSound = hoverSoundTemplate.cloneNode();
-    hoverSound.play().catch(() => {});
-  });
+  // Keep hover sound on the image
+  const img = link.querySelector('img');
+  if (img) {
+    img.addEventListener('mouseenter', () => {
+      const hoverSound = hoverSoundTemplate.cloneNode();
+      hoverSound.play().catch(() => {});
+    });
+  }
 });
 
 // ---------- Back button ----------
