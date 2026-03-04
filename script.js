@@ -7,7 +7,7 @@ const isGitHubPages = window.location.hostname.includes('github.io');
 const BASE_PATH = isGitHubPages ? '/LCB-ID-TLs/' : '/';
 console.log('Base path:', BASE_PATH);
 
-// ---------- Determine base path for sounds (legacy, can be simplified) ----------
+// ---------- Determine base path for sounds ----------
 const getAssetPath = (relativePath) => {
   if (window.location.pathname.includes('/pages/')) {
     return '../' + relativePath;
@@ -31,10 +31,11 @@ const currentBg = document.getElementById('current-bg');
 // Build pageMap from the hidden gallery in the layout
 const pageMap = new Map();
 galleryLinks.forEach(link => {
-  const href = link.getAttribute('href'); // should be full path like "/LCB-ID-TLs/pages/Yi_Sang.html"
-  const bg = link.dataset.background; // should be full path too
+  const href = link.getAttribute('href'); // full path like "/LCB-ID-TLs/pages/Yi_Sang.html"
+  const bg = link.dataset.background;     // full path too
   pageMap.set(href, { bg: bg });
 });
+console.log('pageMap keys:', Array.from(pageMap.keys()));
 
 // ---------- Helper: make all asset paths absolute using BASE_PATH ----------
 function makePathsAbsolute(html) {
@@ -45,12 +46,10 @@ function makePathsAbsolute(html) {
     const oldUrl = element.getAttribute(attr);
     if (!oldUrl) return;
     if (oldUrl.startsWith('http') || oldUrl.startsWith('//') || oldUrl.startsWith('data:')) return;
-    // If it starts with '/', prepend BASE_PATH (removing the leading slash)
     if (oldUrl.startsWith('/')) {
       element.setAttribute(attr, BASE_PATH + oldUrl.substring(1));
       return;
     }
-    // Handle relative paths like "../assets/..." by stripping "../" and prepending BASE_PATH + 'assets/'
     let newUrl = oldUrl;
     while (newUrl.startsWith('../')) {
       newUrl = newUrl.substring(3);
@@ -106,7 +105,6 @@ function showContent(html) {
   }
 }
 
-// Load a character page using its absolute path (e.g., "/LCB-ID-TLs/pages/Yi_Sang.html")
 function loadContent(absolutePath) {
   if (cache.has(absolutePath)) {
     showContent(cache.get(absolutePath));
@@ -130,7 +128,7 @@ function loadContent(absolutePath) {
   }
 }
 
-// Attach click listeners to voiceline images inside the gallery
+// Attach click listeners to voiceline images
 function attachVoicelineListeners() {
   dynamicContent.querySelectorAll('.character-voice img').forEach(img => {
     img.addEventListener('click', (e) => {
@@ -143,12 +141,11 @@ function attachVoicelineListeners() {
       }
 
       const parentLink = img.closest('.character-voice');
-      // Store the current gallery HTML so we can restore it when going back
-      const currentGalleryHTML = dynamicContent.innerHTML;
+      const currentGalleryHTML = dynamicContent.innerHTML; // save for back navigation
 
       const detailState = {
         type: 'voiceline',
-        characterGalleryHTML: currentGalleryHTML, // saved for back navigation
+        characterGalleryHTML: currentGalleryHTML,
         imgSrc: img.src,
         imgAlt: img.alt,
         charTitle: parentLink.dataset.characterTitle,
@@ -167,7 +164,7 @@ function attachVoicelineListeners() {
   });
 }
 
-// Rebuild voiceline detail view from saved data
+// Rebuild voiceline detail view
 function showVoicelineDetailFromData(data) {
   const voicelines = (data.voicelines || "").split('|').map(v => v.trim());
   const translations = (data.translations || "").split('|').map(v => v.trim());
@@ -232,37 +229,52 @@ function showVoicelineDetailFromData(data) {
   dynamicContent.innerHTML = detailHTML;
 }
 
-// ---------- History handling ----------
+// ---------- History handling with logging and fallback ----------
 window.addEventListener('popstate', (event) => {
   const path = window.location.pathname;
   const state = event.state;
+  console.log('popstate - path:', path, 'state:', state);
 
+  // If we have a voiceline state, restore it
   if (state && state.type === 'voiceline') {
-    // Coming back to a voiceline from a forward/back action
+    console.log('Restoring voiceline detail');
     showVoicelineDetailFromData(state);
     gallery.style.display = 'none';
     return;
   }
 
-  // If the state contains characterGalleryHTML, restore it directly (back from voiceline)
+  // If we have a state with gallery HTML, restore it (back from voiceline)
   if (state && state.characterGalleryHTML) {
+    console.log('Restoring character gallery from saved HTML');
     showContent(state.characterGalleryHTML);
     return;
   }
 
-  // Otherwise, handle normal URL navigation
+  // Check if we are at the main gallery
   if (path === BASE_PATH || path === BASE_PATH + 'index.html') {
+    console.log('Going to main gallery');
     showMainGallery();
+    return;
+  }
+
+  // Try to find the character page in pageMap
+  let entry = pageMap.get(path);
+  
+  // Fallback: if path starts with /pages/ but missing repo, prepend BASE_PATH
+  if (!entry && path.startsWith('/pages/')) {
+    const fullPath = BASE_PATH + path.substring(1);
+    console.log('Path not found, trying with BASE_PATH:', fullPath);
+    entry = pageMap.get(fullPath);
+  }
+
+  if (entry) {
+    console.log('Loading character page from map:', path);
+    changeBackground(entry.bg);
+    loadContent(path);
   } else {
-    const entry = pageMap.get(path);
-    if (entry) {
-      changeBackground(entry.bg);
-      loadContent(path);
-    } else {
-      console.warn('Unknown page, going to main gallery');
-      showMainGallery();
-      history.replaceState(null, '', BASE_PATH);
-    }
+    console.warn('Unknown page, going to main gallery. Path not in pageMap:', path);
+    showMainGallery();
+    history.replaceState(null, '', BASE_PATH);
   }
 });
 
@@ -301,7 +313,8 @@ galleryLinks.forEach(link => {
 // ---------- Initial load ----------
 function loadInitialPage() {
   const path = window.location.pathname;
-  
+  console.log('loadInitialPage - path:', path);
+
   if (history.state && history.state.type === 'voiceline') {
     showVoicelineDetailFromData(history.state);
     gallery.style.display = 'none';
@@ -309,21 +322,7 @@ function loadInitialPage() {
   }
 
   if (dynamicContent.innerHTML.trim() !== '') {
-    // If the content is a voiceline detail, we need to set up history properly
-    if (dynamicContent.querySelector('.voiceline-detail')) {
-      // This is a direct load on a voiceline detail page (shouldn't happen normally, but handle it)
-      // We'll treat it as a character page with no history
-      const galleryHtml = dynamicContent.innerHTML; // but it's not gallery, so this is wrong.
-      // Better: reload the character page via URL
-      const entry = pageMap.get(path);
-      if (entry) {
-        changeBackground(entry.bg);
-        loadContent(path);
-      }
-      return;
-    }
-
-    // Otherwise, it's a character gallery directly loaded
+    console.log('Initial content already present, transforming paths');
     const existingHtml = dynamicContent.innerHTML;
     const transformed = makePathsAbsolute(existingHtml);
     dynamicContent.innerHTML = transformed;
@@ -336,10 +335,17 @@ function loadInitialPage() {
   if (path === BASE_PATH || path === BASE_PATH + 'index.html') {
     showMainGallery();
   } else {
-    const entry = pageMap.get(path);
+    let entry = pageMap.get(path);
+    if (!entry && path.startsWith('/pages/')) {
+      const fullPath = BASE_PATH + path.substring(1);
+      entry = pageMap.get(fullPath);
+    }
     if (entry) {
       changeBackground(entry.bg);
       loadContent(path);
+    } else {
+      // If still not found, default to main gallery
+      showMainGallery();
     }
   }
 }
