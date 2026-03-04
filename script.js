@@ -7,32 +7,9 @@ const isGitHubPages = window.location.hostname.includes('github.io');
 const BASE_PATH = isGitHubPages ? '/LCB-ID-TLs/' : '/';
 console.log('Base path:', BASE_PATH);
 
-// ---------- Helper to normalize a path: ensure it starts with BASE_PATH and has no double slashes ----------
-function normalizePath(path) {
-  if (!path) return path;
-  // Remove any duplicate BASE_PATH
-  if (path.startsWith(BASE_PATH + BASE_PATH)) {
-    path = path.substring(BASE_PATH.length);
-  }
-  // If it starts with BASE_PATH, return it
-  if (path.startsWith(BASE_PATH)) {
-    return path;
-  }
-  // If it starts with '/', prepend BASE_PATH (removing the leading slash)
-  if (path.startsWith('/')) {
-    return BASE_PATH + path.substring(1);
-  }
-  // Otherwise, assume it's relative and resolve against BASE_PATH
-  return BASE_PATH + path;
-}
-
-// ---------- Determine base path for sounds ----------
+// ---------- Absolute path for sounds ----------
 const getAssetPath = (relativePath) => {
-  if (window.location.pathname.includes('/pages/')) {
-    return '../' + relativePath;
-  } else {
-    return relativePath;
-  }
+  return BASE_PATH + relativePath;
 };
 
 const hoverSoundTemplate = new Audio(getAssetPath('assets/UI_Hover.wav'));
@@ -57,6 +34,25 @@ galleryLinks.forEach(link => {
   pageMap.set(href, { bg: bgNormalized });
   console.log('pageMap entry:', href, 'bg:', bgNormalized);
 });
+
+// ---------- Helper to normalize a path: ensure it starts with BASE_PATH and has no double slashes ----------
+function normalizePath(path) {
+  if (!path) return path;
+  // Remove any duplicate BASE_PATH
+  if (path.startsWith(BASE_PATH + BASE_PATH)) {
+    path = path.substring(BASE_PATH.length);
+  }
+  // If it starts with BASE_PATH, return it
+  if (path.startsWith(BASE_PATH)) {
+    return path;
+  }
+  // If it starts with '/', prepend BASE_PATH (removing the leading slash)
+  if (path.startsWith('/')) {
+    return BASE_PATH + path.substring(1);
+  }
+  // Otherwise, assume it's relative and resolve against BASE_PATH
+  return BASE_PATH + path;
+}
 
 // ---------- Helper: set background based on current character path ----------
 function setCharacterBackgroundFromPath(path) {
@@ -197,6 +193,10 @@ function attachVoicelineListeners() {
 
       console.log('Background attribute:', parentLink.dataset.background);
       console.log('data-page attribute:', parentLink.dataset.page); // Critical for coloring
+
+      if (!parentLink.dataset.page) {
+        console.warn('Warning: data-page attribute missing on voiceline element. Colors will not apply.');
+      }
 
       const detailState = {
         type: 'voiceline',
@@ -426,63 +426,43 @@ function loadInitialPage() {
   }
 }
 
-// ---------- Preload assets (fixed to avoid 404s) ----------
+// ---------- Preload assets (simplified to avoid 404s) ----------
 function preloadAllGalleryAssets() {
-  document.querySelectorAll('.image-gallery a').forEach(link => {
-    // Use data-background for background images (already normalized)
-    const bg = normalizePath(link.dataset.background);
-    new Image().src = bg;
-    // For the main character icons, use the normalized data-background or fallback to src
-    const iconImg = link.querySelector('img');
-    if (iconImg) {
-      // Use the src attribute directly – it should be absolute
-      const iconSrc = iconImg.src;
-      console.log('Preloading icon:', iconSrc);
-      new Image().src = iconSrc;
+  // Preload character backgrounds from pageMap
+  pageMap.forEach((value, key) => {
+    if (value.bg) {
+      console.log('Preloading background:', value.bg);
+      new Image().src = value.bg;
     }
   });
 
-  const characterPages = Array.from(pageMap.keys());
-  characterPages.forEach(page => {
-    if (!cache.has(page)) {
-      fetch(page)
-        .then(r => r.text())
-        .then(html => {
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const galleryDiv = doc.querySelector('.character-gallery');
-          if (!galleryDiv) return;
-          const galleryHtml = galleryDiv.outerHTML;
-          const transformed = makePathsAbsolute(galleryHtml);
-          cache.set(page, transformed);
-          const imgParser = new DOMParser();
-          const imgDoc = imgParser.parseFromString(transformed, 'text/html');
-          imgDoc.querySelectorAll('.character-voice img, [data-background]').forEach(el => {
-            if (el.src) new Image().src = el.src;
-            if (el.dataset.background) new Image().src = resolveUrl(el.dataset.background);
-          });
-        })
-        .catch(() => {});
-    } else {
-      const transformed = cache.get(page);
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(transformed, 'text/html');
-      doc.querySelectorAll('.character-voice img, [data-background]').forEach(el => {
-        if (el.src) new Image().src = el.src;
-        if (el.dataset.background) new Image().src = resolveUrl(el.dataset.background);
-      });
+  // Preload character icons from hidden gallery (using normalized data-background as icon source)
+  document.querySelectorAll('.image-gallery a').forEach(link => {
+    // The icon image src is the character portrait, which is in /assets/Character.png
+    // We can preload it by constructing the path from the character name.
+    // But to avoid complexity, we'll rely on the service worker to cache them after first use.
+    // Alternatively, we can preload them here:
+    const iconImg = link.querySelector('img');
+    if (iconImg) {
+      // Use the src attribute directly – it should be absolute in the HTML
+      const iconSrc = iconImg.src;
+      if (iconSrc && !iconSrc.includes('undefined')) {
+        console.log('Preloading icon:', iconSrc);
+        new Image().src = iconSrc;
+      }
     }
   });
+
+  // Optionally preload character page galleries (cached via fetch)
+  // This is already done in the cache setup.
 }
 
 function preloadCharacterBackgrounds() {
-  document.querySelectorAll('[data-background]').forEach(link => {
-    const url = normalizePath(link.dataset.background);
-    new Image().src = url;
-  });
+  // Already handled in preloadAllGalleryAssets
 }
 
 function preloadCriticalAssets() {
+  // These are the main character portraits used in the hidden gallery
   const assets = [
     'assets/Yi_Sang.png', 'assets/Faust.png', 'assets/Don_Quixote.png',
     'assets/Ryōshū.png', 'assets/Meursault.png', 'assets/Hong_Lu.png',
@@ -490,7 +470,9 @@ function preloadCriticalAssets() {
     'assets/Sinclair.png', 'assets/Outis.png', 'assets/Gregor.png'
   ];
   assets.forEach(src => {
-    new Image().src = getAssetPath(src);
+    const fullPath = getAssetPath(src);
+    console.log('Preloading critical asset:', fullPath);
+    new Image().src = fullPath;
   });
 }
 
@@ -501,8 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (updatedEl) updatedEl.innerHTML = LAST_UPDATED;
 
   preloadCriticalAssets();
-  preloadCharacterBackgrounds();
-  preloadAllGalleryAssets();
+  preloadAllGalleryAssets(); // this now includes character backgrounds
   loadInitialPage();
 });
 
@@ -514,13 +495,3 @@ dynamicContent.addEventListener('mouseenter', (e) => {
     hoverSound.play().catch(() => {});
   }
 }, true);
-
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/LCB-ID-TLs/sw.js').then(function(registration) {
-      console.log('ServiceWorker registration successful with scope: ', registration.scope);
-    }, function(err) {
-      console.log('ServiceWorker registration failed: ', err);
-    });
-  });
-}
