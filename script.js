@@ -1,12 +1,12 @@
 // ---------- Page header content (update these to change all pages) ----------
 const PAGE_HEADER = "LCB Identities - Untranslated Voicelines Translated to English & Unused Voicelines";
-const LAST_UPDATED = "Updated Mar 4th, 2026 (Added The Index Nursefather Yi Sang!) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
+const LAST_UPDATED = "Updated Mar 4th, 2026 (UPDATING WEBSITE BEWARE FOR ERRORS FOR NOW) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
 
 // ---------- Determine base path (for GitHub Pages subdirectory) ----------
 const scriptTag = document.querySelector('script[src*="script.js"]');
 const scriptSrc = scriptTag ? scriptTag.src : '';
 const BASE_PATH = scriptSrc.substring(0, scriptSrc.lastIndexOf('/') + 1);
-console.log('Base path:', BASE_PATH); // for debugging
+console.log('Base path:', BASE_PATH); // Should be "/LCB-ID-TLs/"
 
 // ---------- Determine base path for assets (for sounds only) ----------
 const getAssetPath = (relativePath) => {
@@ -33,8 +33,13 @@ const currentBg = document.getElementById('current-bg');
 // Build pageMap from the hidden gallery in the layout
 const pageMap = new Map();
 galleryLinks.forEach(link => {
-  const href = link.getAttribute('href'); // should be like "/pages/Yi_Sang.html"
-  const absolutePath = BASE_PATH + href.substring(1); // remove leading slash and prepend base
+  let href = link.getAttribute('href');
+  // Ensure href starts with a slash
+  if (!href.startsWith('/')) {
+    href = '/' + href;
+  }
+  const absolutePath = BASE_PATH + href.substring(1); // remove leading slash, prepend base
+  console.log('Mapping:', absolutePath); // Debug: should be "/LCB-ID-TLs/pages/Yi_Sang.html"
   pageMap.set(absolutePath, {
     bg: link.dataset.background.startsWith('/') ? BASE_PATH + link.dataset.background.substring(1) : link.dataset.background,
   });
@@ -283,9 +288,14 @@ galleryLinks.forEach(link => {
       setTimeout(() => { canClickPlay = true; }, 300);
     }
 
-    const href = link.getAttribute('href'); // e.g. "/pages/Yi_Sang.html"
+    let href = link.getAttribute('href');
+    if (!href.startsWith('/')) {
+      href = '/' + href;
+    }
     const absolutePath = BASE_PATH + href.substring(1);
     const bgImage = link.dataset.background.startsWith('/') ? BASE_PATH + link.dataset.background.substring(1) : link.dataset.background;
+
+    console.log('Navigating to:', absolutePath); // Debug
 
     if (bgImage) changeBackground(bgImage);
     history.pushState({ type: 'character' }, '', absolutePath);
