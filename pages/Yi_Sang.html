@@ -1,4 +1,48 @@
-<div class="character-gallery">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LCB ID Translations</title>
+  <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<div class="bg-container">
+  <div class="body-bg" id="current-bg" style="background-image: url('../assets/Yi_Sang/LCB_YiSang.png');"></div>
+  <div class="body-bg" id="new-bg"></div>
+</div>
+
+<a href="https://www.youtube.com/@NotherWael" target="_blank">
+  <img src="../assets/channels4_profile.jpg" alt="YouTube Profile" id="youtube-profile">
+</a>
+
+<button id="back-button" style="display:block;">
+  <img src="../assets/Back.png" alt="Back" />
+</button>
+
+<div class="overlay">
+  <div class="content mikodacs-text">
+    <h1 id="page-header"></h1>
+    <p id="last-updated"></p>
+    <div class="image-gallery" style="display:none;">
+      <a href="../pages/Yi_Sang.html" data-background="../assets/Yi_Sang/LCB_YiSang.png"><img src="../assets/Yi_Sang.png" alt="Yi Sang"></a>
+      <a href="../pages/Faust.html" data-background="../assets/Faust/LCB_Faust.png"><img src="../assets/Faust.png" alt="Faust"></a>
+      <a href="../pages/Don_Quixote.html" data-background="../assets/Don_Quixote/LCB_DonQ.png"><img src="../assets/Don_Quixote.png" alt="Don Quixote"></a>
+      <a href="../pages/Ryōshū.html" data-background="../assets/Ryōshū/LCB_Ryōshū.png"><img src="../assets/Ryōshū.png" alt="Ryōshū"></a>
+      <a href="../pages/Meursault.html" data-background="../assets/Meursault/LCB_Meursault.png"><img src="../assets/Meursault.png" alt="Meursault"></a>
+      <a href="../pages/Hong_Lu.html" data-background="../assets/Hong_Lu/LCB_Hong_Lu.png"><img src="../assets/Hong_Lu.png" alt="Hong Lu"></a>
+      <a href="../pages/Heathcliff.html" data-background="../assets/Heathcliff/LCB_Heathcliff.png"><img src="../assets/Heathcliff.png" alt="Heathcliff"></a>
+      <a href="../pages/Ishmael.html" data-background="../assets/Ishmael/LCB_Ishmael.png"><img src="../assets/Ishmael.png" alt="Ishmael"></a>
+      <a href="../pages/Rodion.html" data-background="../assets/Rodion/LCB_Rodion.png"><img src="../assets/Rodion.png" alt="Rodion"></a>
+      <a href="../pages/Sinclair.html" data-background="../assets/Sinclair/LCB_Sinclair.png"><img src="../assets/Sinclair.png" alt="Sinclair"></a>
+      <a href="../pages/Outis.html" data-background="../assets/Outis/LCB_Outis.png"><img src="../assets/Outis.png" alt="Outis"></a>
+      <a href="../pages/Gregor.html" data-background="../assets/Gregor/LCB_Gregor.png"><img src="../assets/Gregor.png" alt="Gregor"></a>
+    </div>
+
+    <div id="dynamic-content" class="dynamic-content visible">
+      <div class="character-gallery">
   <a href="#" class="character-voice"
      data-character-title="Effloresced E.G.O::Spicebush Yi Sang"
      data-character-icon="assets/000.png"
@@ -199,4 +243,13 @@
       The House of Spiders: The Index Nursefather
     </span>
   </a>
+      </div>
+    </div>
+  </div>
 </div>
+<audio src="../assets/UI_Hover.wav" preload="auto" style="display:none;"></audio>
+<audio src="../assets/UI_Click.wav" preload="auto" style="display:none;"></audio>
+
+<script src="../script.js"></script>
+</body>
+</html>

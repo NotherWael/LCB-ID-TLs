@@ -41,14 +41,14 @@ jobs:
           echo "LAST_COMMIT_DATE=$FORMATTED_DATE" >> $GITHUB_ENV
           echo "Latest commit date: $FORMATTED_DATE"
 
-      - name: Replace only the date
+      - name: Replace only the date in script.js
         run: |
-          sed -i "s/\(Updated \)[A-Za-z0-9, ]*/\1$LAST_COMMIT_DATE /" index.html
+          sed -i "s/\(Updated \)[^(]*/\1$LAST_COMMIT_DATE /" script.js
 
-      - name: Commit updated index.html
+      - name: Commit updated script.js
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add index.html
-          git diff --cached --quiet || git commit -m "Update last commit date"
+          git add script.js
+          git diff --cached --quiet || git commit -m "Update last commit date in script.js"
           git push

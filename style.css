@@ -20,6 +20,20 @@ html, body {
   font-family: 'Pretendard', sans-serif;
 }
 
+#music-toggle {
+  position: fixed;
+  top: 100px;
+  right: 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 2000;
+}
+#music-toggle img {
+  width: 40px;
+  height: 40px;
+}
+
 .mikodacs-text {
   font-family: 'Mikodacs', sans-serif;
   letter-spacing: 0.09em;
@@ -799,7 +813,7 @@ body {
   pointer-events: none;
   text-align: left;
   max-width: 80%
-  word-break: break-word;
+  word-break break-word;
 }
 
 .season-tags {
