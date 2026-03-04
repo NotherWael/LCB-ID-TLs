@@ -58,6 +58,18 @@ galleryLinks.forEach(link => {
   console.log('pageMap entry:', href, 'bg:', bgNormalized);
 });
 
+// ---------- Helper: set background based on current character path ----------
+function setCharacterBackgroundFromPath(path) {
+  const normalizedPath = normalizePath(path);
+  const entry = pageMap.get(normalizedPath);
+  if (entry && entry.bg) {
+    changeBackground(entry.bg);
+  } else {
+    // Fallback to default background
+    changeBackground(getAssetPath('assets/background.png'));
+  }
+}
+
 // ---------- Helper: make all asset paths absolute using BASE_PATH ----------
 function makePathsAbsolute(html) {
   const parser = new DOMParser();
@@ -141,7 +153,10 @@ function loadContent(absolutePath) {
   if (cache.has(normalizedPath)) {
     const galleryHtml = cache.get(normalizedPath);
     showContent(galleryHtml);
+    // Replace current history state with one that contains the gallery HTML for back navigation
     history.replaceState({ type: 'character_gallery', galleryHTML: galleryHtml }, '', normalizedPath);
+    // Set the main character background
+    setCharacterBackgroundFromPath(normalizedPath);
   } else {
     fetch(normalizedPath)
       .then(response => response.text())
@@ -155,6 +170,8 @@ function loadContent(absolutePath) {
         cache.set(normalizedPath, transformedHtml);
         showContent(transformedHtml);
         history.replaceState({ type: 'character_gallery', galleryHTML: transformedHtml }, '', normalizedPath);
+        // Set the main character background
+        setCharacterBackgroundFromPath(normalizedPath);
       })
       .catch(err => {
         dynamicContent.innerHTML = "<p>Error loading content.</p>";
@@ -178,7 +195,6 @@ function attachVoicelineListeners() {
       const parentLink = img.closest('.character-voice');
       const currentGalleryHTML = dynamicContent.innerHTML;
 
-      // Log the raw background attribute for debugging
       console.log('Background attribute:', parentLink.dataset.background);
 
       const detailState = {
@@ -293,6 +309,8 @@ window.addEventListener('popstate', (event) => {
   if (state.type === 'character_gallery') {
     console.log('Restoring character gallery from state');
     showContent(state.galleryHTML);
+    // Reset background to the character's main background
+    setCharacterBackgroundFromPath(path);
     return;
   }
 
@@ -363,6 +381,8 @@ function loadInitialPage() {
     }
     if (state.type === 'character_gallery') {
       showContent(state.galleryHTML);
+      // Set the main character background
+      setCharacterBackgroundFromPath(normalizedPath);
       return;
     }
   }
@@ -376,6 +396,8 @@ function loadInitialPage() {
     dynamicContent.classList.add('visible');
     attachVoicelineListeners();
     history.replaceState({ type: 'character_gallery', galleryHTML: transformed }, '', normalizedPath);
+    // Set the main character background (inline style already present, but just in case)
+    setCharacterBackgroundFromPath(normalizedPath);
     return;
   }
 
