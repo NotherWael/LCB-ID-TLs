@@ -105,9 +105,13 @@ function showContent(html) {
   }
 }
 
+// Load a character page using its absolute path
 function loadContent(absolutePath) {
   if (cache.has(absolutePath)) {
-    showContent(cache.get(absolutePath));
+    const galleryHtml = cache.get(absolutePath);
+    showContent(galleryHtml);
+    // Replace current history state with one that contains the gallery HTML for back navigation
+    history.replaceState({ type: 'character_gallery', galleryHTML: galleryHtml }, '', absolutePath);
   } else {
     fetch(absolutePath)
       .then(response => response.text())
@@ -120,6 +124,8 @@ function loadContent(absolutePath) {
         const transformedHtml = makePathsAbsolute(galleryHtml);
         cache.set(absolutePath, transformedHtml);
         showContent(transformedHtml);
+        // Replace current history state with one that contains the gallery HTML
+        history.replaceState({ type: 'character_gallery', galleryHTML: transformedHtml }, '', absolutePath);
       })
       .catch(err => {
         dynamicContent.innerHTML = "<p>Error loading content.</p>";
@@ -141,11 +147,12 @@ function attachVoicelineListeners() {
       }
 
       const parentLink = img.closest('.character-voice');
-      const currentGalleryHTML = dynamicContent.innerHTML; // save for back navigation
+      // The current gallery HTML is already in dynamicContent
+      const currentGalleryHTML = dynamicContent.innerHTML;
 
       const detailState = {
         type: 'voiceline',
-        characterGalleryHTML: currentGalleryHTML,
+        characterGalleryHTML: currentGalleryHTML, // saved for back navigation
         imgSrc: img.src,
         imgAlt: img.alt,
         charTitle: parentLink.dataset.characterTitle,
@@ -229,53 +236,51 @@ function showVoicelineDetailFromData(data) {
   dynamicContent.innerHTML = detailHTML;
 }
 
-// ---------- History handling with logging and fallback ----------
+// ---------- History handling ----------
 window.addEventListener('popstate', (event) => {
   const path = window.location.pathname;
   const state = event.state;
   console.log('popstate - path:', path, 'state:', state);
 
-  // If we have a voiceline state, restore it
-  if (state && state.type === 'voiceline') {
-    console.log('Restoring voiceline detail');
+  if (!state) {
+    // No state – likely the initial page load or after hash change, go to main gallery
+    showMainGallery();
+    return;
+  }
+
+  if (state.type === 'voiceline') {
+    // Coming back to a voiceline from a forward/back action (should not happen normally)
     showVoicelineDetailFromData(state);
     gallery.style.display = 'none';
     return;
   }
 
-  // If we have a state with gallery HTML, restore it (back from voiceline)
-  if (state && state.characterGalleryHTML) {
-    console.log('Restoring character gallery from saved HTML');
-    showContent(state.characterGalleryHTML);
+  if (state.type === 'character_gallery') {
+    // Restore the character gallery from saved HTML
+    console.log('Restoring character gallery from state');
+    showContent(state.galleryHTML);
     return;
   }
 
-  // Check if we are at the main gallery
-  if (path === BASE_PATH || path === BASE_PATH + 'index.html') {
-    console.log('Going to main gallery');
-    showMainGallery();
+  // Fallback: if we have a character state without gallery HTML (old method), try to load via URL
+  if (state.type === 'character') {
+    let entry = pageMap.get(path);
+    if (!entry && path.startsWith('/pages/')) {
+      const fullPath = BASE_PATH + path.substring(1);
+      entry = pageMap.get(fullPath);
+    }
+    if (entry) {
+      changeBackground(entry.bg);
+      loadContent(path);
+    } else {
+      console.warn('Character page not found, going to main gallery');
+      showMainGallery();
+    }
     return;
   }
 
-  // Try to find the character page in pageMap
-  let entry = pageMap.get(path);
-  
-  // Fallback: if path starts with /pages/ but missing repo, prepend BASE_PATH
-  if (!entry && path.startsWith('/pages/')) {
-    const fullPath = BASE_PATH + path.substring(1);
-    console.log('Path not found, trying with BASE_PATH:', fullPath);
-    entry = pageMap.get(fullPath);
-  }
-
-  if (entry) {
-    console.log('Loading character page from map:', path);
-    changeBackground(entry.bg);
-    loadContent(path);
-  } else {
-    console.warn('Unknown page, going to main gallery. Path not in pageMap:', path);
-    showMainGallery();
-    history.replaceState(null, '', BASE_PATH);
-  }
+  // If we reach here, unknown state – go to main gallery
+  showMainGallery();
 });
 
 // ---------- Intercept character link clicks ----------
@@ -297,6 +302,7 @@ galleryLinks.forEach(link => {
     console.log('Navigating to:', href);
 
     if (bgImage) changeBackground(bgImage);
+    // Push a temporary state; will be replaced after content loads
     history.pushState({ type: 'character' }, '', href);
     loadContent(href);
   });
@@ -315,12 +321,21 @@ function loadInitialPage() {
   const path = window.location.pathname;
   console.log('loadInitialPage - path:', path);
 
-  if (history.state && history.state.type === 'voiceline') {
-    showVoicelineDetailFromData(history.state);
-    gallery.style.display = 'none';
-    return;
+  // If there's already a state (e.g., after refresh with a state), handle it
+  if (history.state) {
+    const state = history.state;
+    if (state.type === 'voiceline') {
+      showVoicelineDetailFromData(state);
+      gallery.style.display = 'none';
+      return;
+    }
+    if (state.type === 'character_gallery') {
+      showContent(state.galleryHTML);
+      return;
+    }
   }
 
+  // If dynamicContent already has content (direct character page load)
   if (dynamicContent.innerHTML.trim() !== '') {
     console.log('Initial content already present, transforming paths');
     const existingHtml = dynamicContent.innerHTML;
@@ -329,6 +344,8 @@ function loadInitialPage() {
     gallery.style.display = 'none';
     dynamicContent.classList.add('visible');
     attachVoicelineListeners();
+    // Replace the current history entry (which might be null) with a proper state
+    history.replaceState({ type: 'character_gallery', galleryHTML: transformed }, '', path);
     return;
   }
 
@@ -342,9 +359,10 @@ function loadInitialPage() {
     }
     if (entry) {
       changeBackground(entry.bg);
+      // Push a temporary state; will be replaced after load
+      history.replaceState({ type: 'character' }, '', path);
       loadContent(path);
     } else {
-      // If still not found, default to main gallery
       showMainGallery();
     }
   }
