@@ -20,16 +20,16 @@ const galleryLinks = document.querySelectorAll('.image-gallery a');
 const dynamicContent = document.getElementById('dynamic-content');
 const currentBg = document.getElementById('current-bg');
 
-// Build pageMap from the hidden gallery (paths should already be absolute)
+// Build pageMap from the hidden gallery (paths must be absolute, e.g., "/LCB-ID-TLs/pages/Yi_Sang.html")
 const pageMap = new Map();
 galleryLinks.forEach(link => {
-  const href = link.getAttribute('href'); // e.g. "/LCB-ID-TLs/pages/Yi_Sang.html"
-  const bg = link.dataset.background;     // e.g. "/LCB-ID-TLs/assets/Yi_Sang/LCB_YiSang.png"
+  const href = link.getAttribute('href');
+  const bg = link.dataset.background;
   pageMap.set(href, { bg: bg });
   console.log('pageMap entry:', href, 'bg:', bg);
 });
 
-// ---------- Helper: ensure path starts with BASE_PATH (idempotent) ----------
+// ---------- Helper: ensure path starts with BASE_PATH ----------
 function normalizePath(path) {
   if (!path) return path;
   if (path.startsWith(BASE_PATH)) return path;
@@ -60,7 +60,6 @@ function makePathsAbsolute(html) {
       element.setAttribute(attr, BASE_PATH + oldUrl.substring(1));
       return;
     }
-    // Remove leading ../ and prepend BASE_PATH
     let newUrl = oldUrl;
     while (newUrl.startsWith('../')) newUrl = newUrl.substring(3);
     if (newUrl.startsWith('assets/')) newUrl = BASE_PATH + newUrl;
@@ -73,7 +72,7 @@ function makePathsAbsolute(html) {
   return doc.body.innerHTML;
 }
 
-// ---------- Resolve a URL to absolute (if relative) ----------
+// ---------- Resolve a URL (already absolute are left untouched) ----------
 function resolveUrl(url) {
   if (!url || url.startsWith('http') || url.startsWith('//') || url.startsWith('data:')) return url;
   if (url.startsWith(BASE_PATH)) return url;
@@ -101,7 +100,7 @@ function showContent(html) {
   gallery.style.display = 'none';
   dynamicContent.innerHTML = html;
   dynamicContent.classList.add('visible');
-  preloadAllGalleryAssets();
+  // No need to preload here – it's handled separately
 
   const charGallery = dynamicContent.querySelector('.character-gallery');
   if (charGallery) attachVoicelineListeners();
@@ -135,6 +134,16 @@ function loadContent(absolutePath) {
   }
 }
 
+// ---------- Compute fallback page class from current URL ----------
+function getPageClassFromURL() {
+  const path = window.location.pathname;
+  const parts = path.split('/');
+  const fileName = parts[parts.length - 1]; // e.g., "Faust.html"
+  const name = fileName.replace('.html', ''); // e.g., "Faust"
+  // Special handling for Ryōshū (already matches) and Don_Quixote (already matches)
+  return name + '-page';
+}
+
 // Attach click listeners to voiceline images
 function attachVoicelineListeners() {
   dynamicContent.querySelectorAll('.character-voice img').forEach(img => {
@@ -150,17 +159,13 @@ function attachVoicelineListeners() {
       const parentLink = img.closest('.character-voice');
       const currentGalleryHTML = dynamicContent.innerHTML;
 
-      // Try to get pageClass from data-page, else infer from URL
-      let pageClass = parentLink.dataset.page || '';
+      // Use data-page if present, otherwise fallback to URL-based class
+      let pageClass = parentLink.dataset.page;
       if (!pageClass) {
-        // Infer from current path: e.g., "/pages/Faust.html" -> "Faust-page"
-        const path = window.location.pathname;
-        const match = path.match(/\/pages\/([^\/]+)\.html$/);
-        if (match) {
-          const name = match[1];
-          // Convert name to proper class (e.g., "Ryōshū" -> "Ryōshū-page")
-          pageClass = name + '-page';
-        }
+        pageClass = getPageClassFromURL();
+        console.log('Using fallback page class:', pageClass);
+      } else {
+        console.log('Using data-page attribute:', pageClass);
       }
 
       const detailState = {
@@ -344,65 +349,13 @@ function loadInitialPage() {
   }
 }
 
-// ---------- Preload assets (using absolute paths only) ----------
-function preloadAllGalleryAssets() {
+// ---------- Preload assets (absolute paths only, no 404s) ----------
+function preloadMainGalleryIcons() {
   document.querySelectorAll('.image-gallery a').forEach(link => {
-    const bg = link.dataset.background; // should be absolute
+    const bg = link.dataset.background; // absolute
     new Image().src = bg;
-    const icon = link.querySelector('img');
-    if (icon) {
-      // Ensure icon src is absolute
-      const iconSrc = resolveUrl(icon.src);
-      new Image().src = iconSrc;
-    }
-  });
-
-  const characterPages = Array.from(pageMap.keys());
-  characterPages.forEach(page => {
-    if (!cache.has(page)) {
-      fetch(page)
-        .then(r => r.text())
-        .then(html => {
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          const galleryDiv = doc.querySelector('.character-gallery');
-          if (!galleryDiv) return;
-          const galleryHtml = galleryDiv.outerHTML;
-          const transformed = makePathsAbsolute(galleryHtml);
-          cache.set(page, transformed);
-          const imgDoc = new DOMParser().parseFromString(transformed, 'text/html');
-          imgDoc.querySelectorAll('.character-voice img, [data-background]').forEach(el => {
-            if (el.src) new Image().src = el.src;
-            if (el.dataset.background) new Image().src = resolveUrl(el.dataset.background);
-          });
-        })
-        .catch(() => {});
-    } else {
-      const transformed = cache.get(page);
-      const imgDoc = new DOMParser().parseFromString(transformed, 'text/html');
-      imgDoc.querySelectorAll('.character-voice img, [data-background]').forEach(el => {
-        if (el.src) new Image().src = el.src;
-        if (el.dataset.background) new Image().src = resolveUrl(el.dataset.background);
-      });
-    }
-  });
-}
-
-function preloadCharacterBackgrounds() {
-  document.querySelectorAll('[data-background]').forEach(link => {
-    new Image().src = link.dataset.background;
-  });
-}
-
-function preloadCriticalAssets() {
-  const assets = [
-    'assets/Yi_Sang.png', 'assets/Faust.png', 'assets/Don_Quixote.png',
-    'assets/Ryōshū.png', 'assets/Meursault.png', 'assets/Hong_Lu.png',
-    'assets/Heathcliff.png', 'assets/Ishmael.png', 'assets/Rodion.png',
-    'assets/Sinclair.png', 'assets/Outis.png', 'assets/Gregor.png'
-  ];
-  assets.forEach(src => {
-    new Image().src = BASE_PATH + src;
+    const icon = link.querySelector('img').src; // absolute
+    new Image().src = icon;
   });
 }
 
@@ -412,9 +365,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (headerEl) headerEl.innerHTML = PAGE_HEADER;
   if (updatedEl) updatedEl.innerHTML = LAST_UPDATED;
 
-  preloadCriticalAssets();
-  preloadCharacterBackgrounds();
-  preloadAllGalleryAssets();
+  preloadMainGalleryIcons();
   loadInitialPage();
 });
 
