@@ -1,17 +1,12 @@
-// ---------- Determine base path (for GitHub Pages with repo name) ----------
-const BASE_PATH = (() => {
-  // If we're on a page like /repo-name/pages/..., base is /repo-name
-  if (window.location.pathname.includes('/pages/')) {
-    return window.location.pathname.split('/pages/')[0];
-  }
-  // Otherwise, the current path might be /repo-name/ or /
-  const path = window.location.pathname.replace(/\/$/, ''); // remove trailing slash
-  return path || ''; // if empty, it's root domain
-})();
-
-// ---------- Page header content ----------
+// ---------- Page header content (update these to change all pages) ----------
 const PAGE_HEADER = "LCB Identities - Untranslated Voicelines Translated to English & Unused Voicelines";
-const LAST_UPDATED = "Updated Mar 4th, 2026 (Rewritten Website Code, Removed BGM Might Add Back L8R) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
+const LAST_UPDATED = "Updated Feb 22nd, 2026 (Added The Index Nursefather Yi Sang!) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
+
+// ---------- Determine base path (for GitHub Pages subdirectory) ----------
+const scriptTag = document.querySelector('script[src*="script.js"]');
+const scriptSrc = scriptTag ? scriptTag.src : '';
+const BASE_PATH = scriptSrc.substring(0, scriptSrc.lastIndexOf('/') + 1);
+console.log('Base path:', BASE_PATH); // for debugging
 
 // ---------- Determine base path for assets (for sounds only) ----------
 const getAssetPath = (relativePath) => {
@@ -38,37 +33,38 @@ const currentBg = document.getElementById('current-bg');
 // Build pageMap from the hidden gallery in the layout
 const pageMap = new Map();
 galleryLinks.forEach(link => {
-  // Get absolute path including base
-  const absolutePath = new URL(link.href, window.location.origin).pathname;
+  const href = link.getAttribute('href'); // should be like "/pages/Yi_Sang.html"
+  const absolutePath = BASE_PATH + href.substring(1); // remove leading slash and prepend base
   pageMap.set(absolutePath, {
-    bg: link.dataset.background,
+    bg: link.dataset.background.startsWith('/') ? BASE_PATH + link.dataset.background.substring(1) : link.dataset.background,
   });
 });
 
-// ---------- Helper: make all asset paths absolute with base ----------
-function makePathsAbsoluteWithBase(html) {
+// ---------- Helper: make all asset paths absolute using BASE_PATH ----------
+function makePathsAbsolute(html) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
   
   const processAttr = (element, attr) => {
     const oldUrl = element.getAttribute(attr);
     if (!oldUrl) return;
-    // Already absolute or data? leave it.
+    // Already absolute? leave it.
     if (oldUrl.startsWith('http') || oldUrl.startsWith('//') || oldUrl.startsWith('data:')) {
       return;
     }
-    // If it's already root-absolute (starts with /), we need to prepend BASE_PATH
+    // If it starts with '/', prepend BASE_PATH (removing the leading slash)
     if (oldUrl.startsWith('/')) {
-      element.setAttribute(attr, BASE_PATH + oldUrl);
+      element.setAttribute(attr, BASE_PATH + oldUrl.substring(1));
       return;
     }
-    // Remove any leading ../ or ./
+    // Handle relative paths like "../assets/..." by stripping "../" and prepending BASE_PATH + 'assets/'
     let newUrl = oldUrl;
-    while (newUrl.startsWith('../') || newUrl.startsWith('./')) {
-      newUrl = newUrl.replace(/^(\.\.\/|\.\/)/, '');
+    while (newUrl.startsWith('../')) {
+      newUrl = newUrl.substring(3);
     }
-    // Prepend BASE_PATH + /
-    newUrl = BASE_PATH + '/' + newUrl;
+    if (newUrl.startsWith('assets/')) {
+      newUrl = BASE_PATH + newUrl;
+    }
     element.setAttribute(attr, newUrl);
   };
 
@@ -78,24 +74,18 @@ function makePathsAbsoluteWithBase(html) {
   return doc.body.innerHTML;
 }
 
-// ---------- Helper: resolve a relative URL to absolute with base ----------
-function resolveToAbsolute(url) {
-  if (!url || url.startsWith('http') || url.startsWith('//') || url.startsWith('data:')) {
-    return url;
-  }
-  // If it already starts with BASE_PATH, return as is
-  if (BASE_PATH && url.startsWith(BASE_PATH)) return url;
-  // If it's already root-absolute (starts with /), prepend BASE_PATH
-  if (url.startsWith('/')) {
-    return BASE_PATH + url;
-  }
-  // Remove leading ../ or ./
+// ---------- Helper: resolve a relative URL using BASE_PATH ----------
+function resolveUrl(url) {
+  if (!url || url.startsWith('http') || url.startsWith('//') || url.startsWith('data:')) return url;
+  if (url.startsWith('/')) return BASE_PATH + url.substring(1);
   let newUrl = url;
-  while (newUrl.startsWith('../') || newUrl.startsWith('./')) {
-    newUrl = newUrl.replace(/^(\.\.\/|\.\/)/, '');
+  while (newUrl.startsWith('../')) {
+    newUrl = newUrl.substring(3);
   }
-  // Prepend BASE_PATH + /
-  return BASE_PATH + '/' + newUrl;
+  if (newUrl.startsWith('assets/')) {
+    return BASE_PATH + newUrl;
+  }
+  return url;
 }
 
 // ---------- UI helpers ----------
@@ -109,8 +99,8 @@ function showMainGallery() {
   gallery.style.display = 'grid';
   backButton.style.display = 'none';
   changeBackground(getAssetPath('assets/background.png'));
-  // Replace history state with base path (repo root)
-  history.replaceState(null, '', BASE_PATH + '/');
+  // Replace history state with base path root
+  history.replaceState(null, '', BASE_PATH);
 }
 
 function showContent(html) {
@@ -126,7 +116,7 @@ function showContent(html) {
   }
 }
 
-// Load a character page using its absolute path (e.g., "/repo-name/pages/Yi_Sang.html")
+// Load a character page using its absolute path (e.g., "/LCB-ID-TLs/pages/Yi_Sang.html")
 function loadContent(absolutePath) {
   if (cache.has(absolutePath)) {
     showContent(cache.get(absolutePath));
@@ -142,8 +132,8 @@ function loadContent(absolutePath) {
           throw new Error('No character gallery found');
         }
         const galleryHtml = galleryDiv.outerHTML;
-        // Transform all asset paths to absolute with base
-        const transformedHtml = makePathsAbsoluteWithBase(galleryHtml);
+        // Transform all asset paths to absolute using BASE_PATH
+        const transformedHtml = makePathsAbsolute(galleryHtml);
         cache.set(absolutePath, transformedHtml);
         showContent(transformedHtml);
       })
@@ -172,13 +162,13 @@ function attachVoicelineListeners() {
         imgSrc: img.src,
         imgAlt: img.alt,
         charTitle: parentLink.dataset.characterTitle,
-        charIcon: resolveToAbsolute(parentLink.dataset.characterIcon),
+        charIcon: resolveUrl(parentLink.dataset.characterIcon),
         translationLink: parentLink.dataset.translationLink,
         voicelines: parentLink.dataset.voiceline,
         translations: parentLink.dataset.translation,
         audios: parentLink.dataset.audio,
         notes: parentLink.dataset.notes,
-        background: resolveToAbsolute(parentLink.dataset.background)
+        background: resolveUrl(parentLink.dataset.background)
       };
 
       history.pushState(detailState, '', location.pathname);
@@ -199,12 +189,12 @@ function showVoicelineDetailFromData(data) {
     const audioEntry = audios[i] || '';
     const [mainSection, unusedSection] = audioEntry.split(';').map(s => s.trim());
     
-    const mainAudio = mainSection ? mainSection.split(',').filter(url => url.trim()).map(url => resolveToAbsolute(url)) : [];
+    const mainAudio = mainSection ? mainSection.split(',').filter(url => url.trim()).map(url => resolveUrl(url)) : [];
     const mainElements = mainAudio.map(url => 
       `<audio controls class="audio-stack"><source src="${url}"></audio>`
     ).join('');
 
-    const unusedAudio = unusedSection ? unusedSection.split(',').filter(url => url.trim()).map(url => resolveToAbsolute(url)) : [];
+    const unusedAudio = unusedSection ? unusedSection.split(',').filter(url => url.trim()).map(url => resolveUrl(url)) : [];
     const unusedElements = unusedAudio.map(url => 
       `<audio controls class="audio-stack unused"><source src="${url}"></audio>`
     ).join('');
@@ -254,7 +244,7 @@ function showVoicelineDetailFromData(data) {
 
 // ---------- History handling ----------
 window.addEventListener('popstate', (event) => {
-  const path = window.location.pathname;
+  const path = window.location.pathname; // includes base path
   const state = event.state;
 
   if (state && state.type === 'voiceline') {
@@ -264,7 +254,8 @@ window.addEventListener('popstate', (event) => {
     return;
   }
 
-  if (path === BASE_PATH + '/' || path === BASE_PATH + '/index.html' || path === BASE_PATH) {
+  // Check if path is the base root (with or without trailing slash)
+  if (path === BASE_PATH || path === BASE_PATH + 'index.html') {
     showMainGallery();
   } else {
     const entry = pageMap.get(path);
@@ -274,7 +265,7 @@ window.addEventListener('popstate', (event) => {
     } else {
       console.warn('Unknown page, going to main gallery');
       showMainGallery();
-      history.replaceState(null, '', BASE_PATH + '/');
+      history.replaceState(null, '', BASE_PATH);
     }
   }
 });
@@ -292,8 +283,9 @@ galleryLinks.forEach(link => {
       setTimeout(() => { canClickPlay = true; }, 300);
     }
 
-    const absolutePath = new URL(link.href, window.location.origin).pathname;
-    const bgImage = link.dataset.background;
+    const href = link.getAttribute('href'); // e.g. "/pages/Yi_Sang.html"
+    const absolutePath = BASE_PATH + href.substring(1);
+    const bgImage = link.dataset.background.startsWith('/') ? BASE_PATH + link.dataset.background.substring(1) : link.dataset.background;
 
     if (bgImage) changeBackground(bgImage);
     history.pushState({ type: 'character' }, '', absolutePath);
@@ -313,13 +305,13 @@ backButton.addEventListener('click', () => {
   if (history.length > 1) {
     history.back();
   } else {
-    window.location.href = BASE_PATH + '/'; // Go to repo root if no history
+    window.location.href = BASE_PATH; // Go to index if no history
   }
 });
 
 // ---------- Initial load ----------
 function loadInitialPage() {
-  const path = window.location.pathname;
+  const path = window.location.pathname; // includes base path
   
   // If there's a history state for a voiceline, restore it
   if (history.state && history.state.type === 'voiceline') {
@@ -331,9 +323,9 @@ function loadInitialPage() {
 
   // If dynamicContent already has content (direct character page load)
   if (dynamicContent.innerHTML.trim() !== '') {
-    // The gallery is already there, but we need to transform paths to absolute with base
+    // The gallery is already there, but we need to transform paths to absolute
     const existingHtml = dynamicContent.innerHTML;
-    const transformed = makePathsAbsoluteWithBase(existingHtml);
+    const transformed = makePathsAbsolute(existingHtml);
     dynamicContent.innerHTML = transformed;
     gallery.style.display = 'none';
     dynamicContent.classList.add('visible');
@@ -342,7 +334,7 @@ function loadInitialPage() {
     return;
   }
 
-  if (path === BASE_PATH + '/' || path === BASE_PATH + '/index.html' || path === BASE_PATH) {
+  if (path === BASE_PATH || path === BASE_PATH + 'index.html') {
     showMainGallery();
   } else {
     const entry = pageMap.get(path);
@@ -356,8 +348,10 @@ function loadInitialPage() {
 // ---------- Preload assets ----------
 function preloadAllGalleryAssets() {
   document.querySelectorAll('.image-gallery a').forEach(link => {
-    new Image().src = link.dataset.background;
-    new Image().src = link.querySelector('img').src;
+    const bg = link.dataset.background.startsWith('/') ? BASE_PATH + link.dataset.background.substring(1) : link.dataset.background;
+    new Image().src = bg;
+    const imgSrc = link.querySelector('img').src; // might already be absolute
+    new Image().src = imgSrc;
   });
 
   const characterPages = Array.from(pageMap.keys());
@@ -371,14 +365,14 @@ function preloadAllGalleryAssets() {
           const galleryDiv = doc.querySelector('.character-gallery');
           if (!galleryDiv) return;
           const galleryHtml = galleryDiv.outerHTML;
-          const transformed = makePathsAbsoluteWithBase(galleryHtml);
+          const transformed = makePathsAbsolute(galleryHtml);
           cache.set(page, transformed);
           // Preload images from transformed gallery
           const imgParser = new DOMParser();
           const imgDoc = imgParser.parseFromString(transformed, 'text/html');
           imgDoc.querySelectorAll('.character-voice img, [data-background]').forEach(el => {
             if (el.src) new Image().src = el.src;
-            if (el.dataset.background) new Image().src = el.dataset.background;
+            if (el.dataset.background) new Image().src = resolveUrl(el.dataset.background);
           });
         })
         .catch(() => {});
@@ -388,7 +382,7 @@ function preloadAllGalleryAssets() {
       const doc = parser.parseFromString(transformed, 'text/html');
       doc.querySelectorAll('.character-voice img, [data-background]').forEach(el => {
         if (el.src) new Image().src = el.src;
-        if (el.dataset.background) new Image().src = el.dataset.background;
+        if (el.dataset.background) new Image().src = resolveUrl(el.dataset.background);
       });
     }
   });
@@ -396,7 +390,8 @@ function preloadAllGalleryAssets() {
 
 function preloadCharacterBackgrounds() {
   document.querySelectorAll('[data-background]').forEach(link => {
-    new Image().src = link.dataset.background;
+    const url = link.dataset.background.startsWith('/') ? BASE_PATH + link.dataset.background.substring(1) : link.dataset.background;
+    new Image().src = url;
   });
 }
 
@@ -433,31 +428,3 @@ dynamicContent.addEventListener('mouseenter', (e) => {
     hoverSound.play().catch(() => {});
   }
 }, true);
-
-//  const bgMusic = document.getElementById('bg-music');
-//  const musicToggle = document.getElementById('music-toggle');
-
-  // default volume
-  //bgMusic.volume = 0.4;
-
-  // If autoplay is blocked, start after first click
-  //document.addEventListener('click', () => {
-    //if (bgMusic.paused) {
-      //bgMusic.play().catch(err => console.warn("Music autoplay blocked:", err));
-    //}
-  //}, { once: true });
-
-  // Toggle button logic
-  //let musicOn = true;
-  //musicToggle.addEventListener('click', () => {
-    //if (musicOn) {
-      //bgMusic.pause();
-      //musicToggle.querySelector('img').src = "assets/music_off.png";
-      //musicToggle.querySelector('img').alt = "Music Off";
-    //} else {
-      //bgMusic.play().catch(() => {});
-      //musicToggle.querySelector('img').src = "assets/music_on.png";
-      //musicToggle.querySelector('img').alt = "Music On";
-    //}
-    //musicOn = !musicOn;
-  //});
