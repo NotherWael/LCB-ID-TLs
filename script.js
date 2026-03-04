@@ -7,6 +7,25 @@ const isGitHubPages = window.location.hostname.includes('github.io');
 const BASE_PATH = isGitHubPages ? '/LCB-ID-TLs/' : '/';
 console.log('Base path:', BASE_PATH);
 
+// ---------- Helper to normalize a path: ensure it starts with BASE_PATH and has no double slashes ----------
+function normalizePath(path) {
+  if (!path) return path;
+  // Remove any duplicate BASE_PATH
+  if (path.startsWith(BASE_PATH + BASE_PATH)) {
+    path = path.substring(BASE_PATH.length);
+  }
+  // If it starts with BASE_PATH, return it
+  if (path.startsWith(BASE_PATH)) {
+    return path;
+  }
+  // If it starts with '/', prepend BASE_PATH (removing the leading slash)
+  if (path.startsWith('/')) {
+    return BASE_PATH + path.substring(1);
+  }
+  // Otherwise, assume it's relative and resolve against BASE_PATH
+  return BASE_PATH + path;
+}
+
 // ---------- Determine base path for sounds ----------
 const getAssetPath = (relativePath) => {
   if (window.location.pathname.includes('/pages/')) {
@@ -31,11 +50,15 @@ const currentBg = document.getElementById('current-bg');
 // Build pageMap from the hidden gallery in the layout
 const pageMap = new Map();
 galleryLinks.forEach(link => {
-  const href = link.getAttribute('href'); // full path like "/LCB-ID-TLs/pages/Yi_Sang.html"
+  let href = link.getAttribute('href'); // should be full path like "/LCB-ID-TLs/pages/Yi_Sang.html"
+  // Ensure it's absolute with BASE_PATH
+  href = normalizePath(href);
   const bg = link.dataset.background;     // full path too
-  pageMap.set(href, { bg: bg });
+  // Also normalize bg
+  const bgNormalized = normalizePath(bg);
+  pageMap.set(href, { bg: bgNormalized });
+  console.log('pageMap entry:', href, 'bg:', bgNormalized);
 });
-console.log('pageMap keys:', Array.from(pageMap.keys()));
 
 // ---------- Helper: make all asset paths absolute using BASE_PATH ----------
 function makePathsAbsolute(html) {
@@ -107,13 +130,16 @@ function showContent(html) {
 
 // Load a character page using its absolute path
 function loadContent(absolutePath) {
-  if (cache.has(absolutePath)) {
-    const galleryHtml = cache.get(absolutePath);
+  console.log('loadContent called with:', absolutePath);
+  const normalizedPath = normalizePath(absolutePath);
+  console.log('normalizedPath:', normalizedPath);
+  if (cache.has(normalizedPath)) {
+    const galleryHtml = cache.get(normalizedPath);
     showContent(galleryHtml);
     // Replace current history state with one that contains the gallery HTML for back navigation
-    history.replaceState({ type: 'character_gallery', galleryHTML: galleryHtml }, '', absolutePath);
+    history.replaceState({ type: 'character_gallery', galleryHTML: galleryHtml }, '', normalizedPath);
   } else {
-    fetch(absolutePath)
+    fetch(normalizedPath)
       .then(response => response.text())
       .then(html => {
         const parser = new DOMParser();
@@ -122,10 +148,10 @@ function loadContent(absolutePath) {
         if (!galleryDiv) throw new Error('No character gallery found');
         const galleryHtml = galleryDiv.outerHTML;
         const transformedHtml = makePathsAbsolute(galleryHtml);
-        cache.set(absolutePath, transformedHtml);
+        cache.set(normalizedPath, transformedHtml);
         showContent(transformedHtml);
         // Replace current history state with one that contains the gallery HTML
-        history.replaceState({ type: 'character_gallery', galleryHTML: transformedHtml }, '', absolutePath);
+        history.replaceState({ type: 'character_gallery', galleryHTML: transformedHtml }, '', normalizedPath);
       })
       .catch(err => {
         dynamicContent.innerHTML = "<p>Error loading content.</p>";
@@ -147,12 +173,11 @@ function attachVoicelineListeners() {
       }
 
       const parentLink = img.closest('.character-voice');
-      // The current gallery HTML is already in dynamicContent
       const currentGalleryHTML = dynamicContent.innerHTML;
 
       const detailState = {
         type: 'voiceline',
-        characterGalleryHTML: currentGalleryHTML, // saved for back navigation
+        characterGalleryHTML: currentGalleryHTML,
         imgSrc: img.src,
         imgAlt: img.alt,
         charTitle: parentLink.dataset.characterTitle,
@@ -165,13 +190,15 @@ function attachVoicelineListeners() {
         background: resolveUrl(parentLink.dataset.background)
       };
 
-      history.pushState(detailState, '', location.pathname);
+      // Use normalized current path
+      const currentPath = normalizePath(window.location.pathname);
+      history.pushState(detailState, '', currentPath);
       showVoicelineDetailFromData(detailState);
     });
   });
 }
 
-// Rebuild voiceline detail view
+// Rebuild voiceline detail view (keep your existing implementation)
 function showVoicelineDetailFromData(data) {
   const voicelines = (data.voicelines || "").split('|').map(v => v.trim());
   const translations = (data.translations || "").split('|').map(v => v.trim());
@@ -243,35 +270,29 @@ window.addEventListener('popstate', (event) => {
   console.log('popstate - path:', path, 'state:', state);
 
   if (!state) {
-    // No state – likely the initial page load or after hash change, go to main gallery
     showMainGallery();
     return;
   }
 
   if (state.type === 'voiceline') {
-    // Coming back to a voiceline from a forward/back action (should not happen normally)
     showVoicelineDetailFromData(state);
     gallery.style.display = 'none';
     return;
   }
 
   if (state.type === 'character_gallery') {
-    // Restore the character gallery from saved HTML
     console.log('Restoring character gallery from state');
     showContent(state.galleryHTML);
     return;
   }
 
-  // Fallback: if we have a character state without gallery HTML (old method), try to load via URL
+  // Fallback for old character state (should not happen)
   if (state.type === 'character') {
-    let entry = pageMap.get(path);
-    if (!entry && path.startsWith('/pages/')) {
-      const fullPath = BASE_PATH + path.substring(1);
-      entry = pageMap.get(fullPath);
-    }
+    const normalizedPath = normalizePath(path);
+    const entry = pageMap.get(normalizedPath);
     if (entry) {
       changeBackground(entry.bg);
-      loadContent(path);
+      loadContent(normalizedPath);
     } else {
       console.warn('Character page not found, going to main gallery');
       showMainGallery();
@@ -279,7 +300,6 @@ window.addEventListener('popstate', (event) => {
     return;
   }
 
-  // If we reach here, unknown state – go to main gallery
   showMainGallery();
 });
 
@@ -296,15 +316,18 @@ galleryLinks.forEach(link => {
       setTimeout(() => { canClickPlay = true; }, 300);
     }
 
-    const href = link.getAttribute('href'); // full path
-    const bgImage = link.dataset.background; // full path
+    let href = link.getAttribute('href');
+    const bgImage = link.dataset.background;
 
-    console.log('Navigating to:', href);
+    // Normalize both
+    const normalizedHref = normalizePath(href);
+    const normalizedBg = normalizePath(bgImage);
 
-    if (bgImage) changeBackground(bgImage);
-    // Push a temporary state; will be replaced after content loads
-    history.pushState({ type: 'character' }, '', href);
-    loadContent(href);
+    console.log('Navigating to:', normalizedHref);
+
+    if (normalizedBg) changeBackground(normalizedBg);
+    history.pushState({ type: 'character' }, '', normalizedHref);
+    loadContent(normalizedHref);
   });
 
   const img = link.querySelector('img');
@@ -319,7 +342,8 @@ galleryLinks.forEach(link => {
 // ---------- Initial load ----------
 function loadInitialPage() {
   const path = window.location.pathname;
-  console.log('loadInitialPage - path:', path);
+  const normalizedPath = normalizePath(path);
+  console.log('loadInitialPage - original path:', path, 'normalized:', normalizedPath);
 
   // If there's already a state (e.g., after refresh with a state), handle it
   if (history.state) {
@@ -344,25 +368,22 @@ function loadInitialPage() {
     gallery.style.display = 'none';
     dynamicContent.classList.add('visible');
     attachVoicelineListeners();
-    // Replace the current history entry (which might be null) with a proper state
-    history.replaceState({ type: 'character_gallery', galleryHTML: transformed }, '', path);
+    // Replace the current history entry with a proper state, using normalized path
+    history.replaceState({ type: 'character_gallery', galleryHTML: transformed }, '', normalizedPath);
     return;
   }
 
-  if (path === BASE_PATH || path === BASE_PATH + 'index.html') {
+  if (normalizedPath === BASE_PATH || normalizedPath === BASE_PATH + 'index.html') {
     showMainGallery();
   } else {
-    let entry = pageMap.get(path);
-    if (!entry && path.startsWith('/pages/')) {
-      const fullPath = BASE_PATH + path.substring(1);
-      entry = pageMap.get(fullPath);
-    }
+    const entry = pageMap.get(normalizedPath);
     if (entry) {
       changeBackground(entry.bg);
       // Push a temporary state; will be replaced after load
-      history.replaceState({ type: 'character' }, '', path);
-      loadContent(path);
+      history.replaceState({ type: 'character' }, '', normalizedPath);
+      loadContent(normalizedPath);
     } else {
+      console.warn('Unknown page, going to main gallery. Path not in pageMap:', normalizedPath);
       showMainGallery();
     }
   }
@@ -371,8 +392,10 @@ function loadInitialPage() {
 // ---------- Preload assets ----------
 function preloadAllGalleryAssets() {
   document.querySelectorAll('.image-gallery a').forEach(link => {
-    new Image().src = link.dataset.background;
-    new Image().src = link.querySelector('img').src;
+    const bg = normalizePath(link.dataset.background);
+    new Image().src = bg;
+    const imgSrc = link.querySelector('img').src; // might already be absolute
+    new Image().src = imgSrc;
   });
 
   const characterPages = Array.from(pageMap.keys());
@@ -410,7 +433,8 @@ function preloadAllGalleryAssets() {
 
 function preloadCharacterBackgrounds() {
   document.querySelectorAll('[data-background]').forEach(link => {
-    new Image().src = link.dataset.background;
+    const url = normalizePath(link.dataset.background);
+    new Image().src = url;
   });
 }
 
