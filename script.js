@@ -1,31 +1,13 @@
 // ---------- Page header content (update these to change all pages) ----------
 const PAGE_HEADER = "LCB Identities - Untranslated Voicelines Translated to English & Unused Voicelines";
-const LAST_UPDATED = "Updated Mar 4th, 2026 (Rewritten Website Coding + Temporarily Removed BGM) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
+const LAST_UPDATED = "Updated Mar 4th, 2026 (UPDATING WEBSITE BEWARE FOR ERRORS FOR NOW!!!!) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
 
-// ---------- Determine base path (for GitHub Pages subdirectory) ----------
-function getBasePath() {
-  // Try to get base from script src first
-  const scriptTag = document.querySelector('script[src*="script.js"]');
-  if (scriptTag) {
-    const scriptSrc = scriptTag.src;
-    const lastSlash = scriptSrc.lastIndexOf('/');
-    if (lastSlash !== -1) {
-      return scriptSrc.substring(0, lastSlash + 1);
-    }
-  }
-  // Fallback: use current path up to '/pages/' if present
-  const path = window.location.pathname;
-  const pagesIndex = path.indexOf('/pages/');
-  if (pagesIndex !== -1) {
-    return path.substring(0, pagesIndex + 1);
-  }
-  // Otherwise assume root
-  return '/';
-}
-const BASE_PATH = getBasePath();
-console.log('Base path:', BASE_PATH); // Should be "/LCB-ID-TLs/"
+// ---------- Determine base path for assets (for internal use) ----------
+const isGitHubPages = window.location.hostname.includes('github.io');
+const BASE_PATH = isGitHubPages ? '/LCB-ID-TLs/' : '/';
+console.log('Base path:', BASE_PATH);
 
-// ---------- Determine base path for assets (for sounds only) ----------
+// ---------- Determine base path for sounds (legacy, can be simplified) ----------
 const getAssetPath = (relativePath) => {
   if (window.location.pathname.includes('/pages/')) {
     return '../' + relativePath;
@@ -44,22 +26,14 @@ const cache = new Map();
 const gallery = document.querySelector('.image-gallery');
 const galleryLinks = document.querySelectorAll('.image-gallery a');
 const dynamicContent = document.getElementById('dynamic-content');
-const backButton = document.getElementById('back-button');
 const currentBg = document.getElementById('current-bg');
 
 // Build pageMap from the hidden gallery in the layout
 const pageMap = new Map();
 galleryLinks.forEach(link => {
-  let href = link.getAttribute('href');
-  // Ensure href starts with a slash
-  if (!href.startsWith('/')) {
-    href = '/' + href;
-  }
-  const absolutePath = BASE_PATH + href.substring(1); // remove leading slash, prepend base
-  console.log('Mapping:', absolutePath); // Debug: should be "/LCB-ID-TLs/pages/Yi_Sang.html"
-  pageMap.set(absolutePath, {
-    bg: link.dataset.background.startsWith('/') ? BASE_PATH + link.dataset.background.substring(1) : link.dataset.background,
-  });
+  const href = link.getAttribute('href'); // should be full path like "/LCB-ID-TLs/pages/Yi_Sang.html"
+  const bg = link.dataset.background; // should be full path too
+  pageMap.set(href, { bg: bg });
 });
 
 // ---------- Helper: make all asset paths absolute using BASE_PATH ----------
@@ -70,10 +44,7 @@ function makePathsAbsolute(html) {
   const processAttr = (element, attr) => {
     const oldUrl = element.getAttribute(attr);
     if (!oldUrl) return;
-    // Already absolute? leave it.
-    if (oldUrl.startsWith('http') || oldUrl.startsWith('//') || oldUrl.startsWith('data:')) {
-      return;
-    }
+    if (oldUrl.startsWith('http') || oldUrl.startsWith('//') || oldUrl.startsWith('data:')) return;
     // If it starts with '/', prepend BASE_PATH (removing the leading slash)
     if (oldUrl.startsWith('/')) {
       element.setAttribute(attr, BASE_PATH + oldUrl.substring(1));
@@ -119,9 +90,7 @@ function showMainGallery() {
   dynamicContent.innerHTML = '';
   dynamicContent.classList.remove('visible');
   gallery.style.display = 'grid';
-  backButton.style.display = 'none';
   changeBackground(getAssetPath('assets/background.png'));
-  // Replace history state with base path root
   history.replaceState(null, '', BASE_PATH);
 }
 
@@ -129,7 +98,6 @@ function showContent(html) {
   gallery.style.display = 'none';
   dynamicContent.innerHTML = html;
   dynamicContent.classList.add('visible');
-  backButton.style.display = 'block';
   preloadAllGalleryAssets();
 
   const charGallery = dynamicContent.querySelector('.character-gallery');
@@ -146,15 +114,11 @@ function loadContent(absolutePath) {
     fetch(absolutePath)
       .then(response => response.text())
       .then(html => {
-        // Extract only the .character-gallery from the loaded page
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         const galleryDiv = doc.querySelector('.character-gallery');
-        if (!galleryDiv) {
-          throw new Error('No character gallery found');
-        }
+        if (!galleryDiv) throw new Error('No character gallery found');
         const galleryHtml = galleryDiv.outerHTML;
-        // Transform all asset paths to absolute using BASE_PATH
         const transformedHtml = makePathsAbsolute(galleryHtml);
         cache.set(absolutePath, transformedHtml);
         showContent(transformedHtml);
@@ -271,12 +235,10 @@ window.addEventListener('popstate', (event) => {
 
   if (state && state.type === 'voiceline') {
     showVoicelineDetailFromData(state);
-    backButton.style.display = 'block';
     gallery.style.display = 'none';
     return;
   }
 
-  // Check if path is the base root (with or without trailing slash)
   if (path === BASE_PATH || path === BASE_PATH + 'index.html') {
     showMainGallery();
   } else {
@@ -296,7 +258,7 @@ window.addEventListener('popstate', (event) => {
 galleryLinks.forEach(link => {
   link.addEventListener('click', (e) => {
     e.preventDefault();
-    console.log('Gallery link clicked'); // Debug
+    console.log('Gallery link clicked');
 
     if (canClickPlay) {
       clickSound.currentTime = 0;
@@ -305,21 +267,16 @@ galleryLinks.forEach(link => {
       setTimeout(() => { canClickPlay = true; }, 300);
     }
 
-    let href = link.getAttribute('href');
-    if (!href.startsWith('/')) {
-      href = '/' + href;
-    }
-    const absolutePath = BASE_PATH + href.substring(1);
-    const bgImage = link.dataset.background.startsWith('/') ? BASE_PATH + link.dataset.background.substring(1) : link.dataset.background;
+    const href = link.getAttribute('href'); // full path
+    const bgImage = link.dataset.background; // full path
 
-    console.log('Navigating to:', absolutePath); // Debug
+    console.log('Navigating to:', href);
 
     if (bgImage) changeBackground(bgImage);
-    history.pushState({ type: 'character' }, '', absolutePath);
-    loadContent(absolutePath);
+    history.pushState({ type: 'character' }, '', href);
+    loadContent(href);
   });
 
-  // Keep hover sound on the image
   const img = link.querySelector('img');
   if (img) {
     img.addEventListener('mouseenter', () => {
@@ -329,47 +286,23 @@ galleryLinks.forEach(link => {
   }
 });
 
-// ---------- Back button ----------
-backButton.addEventListener('click', () => {
-  clickSound.currentTime = 0;
-  clickSound.play().catch(console.warn);
-  if (history.length > 1) {
-    history.back();
-  } else {
-    window.location.href = BASE_PATH; // Go to index if no history
-  }
-});
-
 // ---------- Initial load ----------
 function loadInitialPage() {
-  const path = window.location.pathname; // includes base path
+  const path = window.location.pathname;
   
-  // If there's a history state for a voiceline, restore it
   if (history.state && history.state.type === 'voiceline') {
     showVoicelineDetailFromData(history.state);
     gallery.style.display = 'none';
-    backButton.style.display = 'block';
     return;
   }
 
-  // If dynamicContent already has content (direct character page load)
   if (dynamicContent.innerHTML.trim() !== '') {
-    // The gallery is already there, but we need to transform paths to absolute
     const existingHtml = dynamicContent.innerHTML;
     const transformed = makePathsAbsolute(existingHtml);
     dynamicContent.innerHTML = transformed;
     gallery.style.display = 'none';
     dynamicContent.classList.add('visible');
-    backButton.style.display = 'block';
     attachVoicelineListeners();
-
-    // If this is the first page in this tab (no previous history), replace the state with index and then push this page
-    // so that back goes to index.
-    if (history.length === 1) {
-      const indexUrl = BASE_PATH;
-      history.replaceState(null, '', indexUrl);
-      history.pushState({ type: 'character' }, '', window.location.pathname);
-    }
     return;
   }
 
@@ -387,10 +320,8 @@ function loadInitialPage() {
 // ---------- Preload assets ----------
 function preloadAllGalleryAssets() {
   document.querySelectorAll('.image-gallery a').forEach(link => {
-    const bg = link.dataset.background.startsWith('/') ? BASE_PATH + link.dataset.background.substring(1) : link.dataset.background;
-    new Image().src = bg;
-    const imgSrc = link.querySelector('img').src; // might already be absolute
-    new Image().src = imgSrc;
+    new Image().src = link.dataset.background;
+    new Image().src = link.querySelector('img').src;
   });
 
   const characterPages = Array.from(pageMap.keys());
@@ -406,7 +337,6 @@ function preloadAllGalleryAssets() {
           const galleryHtml = galleryDiv.outerHTML;
           const transformed = makePathsAbsolute(galleryHtml);
           cache.set(page, transformed);
-          // Preload images from transformed gallery
           const imgParser = new DOMParser();
           const imgDoc = imgParser.parseFromString(transformed, 'text/html');
           imgDoc.querySelectorAll('.character-voice img, [data-background]').forEach(el => {
@@ -429,8 +359,7 @@ function preloadAllGalleryAssets() {
 
 function preloadCharacterBackgrounds() {
   document.querySelectorAll('[data-background]').forEach(link => {
-    const url = link.dataset.background.startsWith('/') ? BASE_PATH + link.dataset.background.substring(1) : link.dataset.background;
-    new Image().src = url;
+    new Image().src = link.dataset.background;
   });
 }
 
@@ -447,7 +376,6 @@ function preloadCriticalAssets() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Set the page header and last-updated text from constants
   const headerEl = document.getElementById('page-header');
   const updatedEl = document.getElementById('last-updated');
   if (headerEl) headerEl.innerHTML = PAGE_HEADER;
