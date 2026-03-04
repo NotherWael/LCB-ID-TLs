@@ -51,10 +51,8 @@ const currentBg = document.getElementById('current-bg');
 const pageMap = new Map();
 galleryLinks.forEach(link => {
   let href = link.getAttribute('href'); // should be full path like "/LCB-ID-TLs/pages/Yi_Sang.html"
-  // Ensure it's absolute with BASE_PATH
   href = normalizePath(href);
-  const bg = link.dataset.background;     // full path too
-  // Also normalize bg
+  const bg = link.dataset.background;
   const bgNormalized = normalizePath(bg);
   pageMap.set(href, { bg: bgNormalized });
   console.log('pageMap entry:', href, 'bg:', bgNormalized);
@@ -89,10 +87,16 @@ function makePathsAbsolute(html) {
   return doc.body.innerHTML;
 }
 
-// ---------- Helper: resolve a relative URL using BASE_PATH ----------
+// ---------- Helper: resolve a relative URL using BASE_PATH, but leave already-absolute URLs untouched ----------
 function resolveUrl(url) {
   if (!url || url.startsWith('http') || url.startsWith('//') || url.startsWith('data:')) return url;
-  if (url.startsWith('/')) return BASE_PATH + url.substring(1);
+  // If it already starts with BASE_PATH, it's already absolute – return as is
+  if (url.startsWith(BASE_PATH)) {
+    return url;
+  }
+  if (url.startsWith('/')) {
+    return BASE_PATH + url.substring(1);
+  }
   let newUrl = url;
   while (newUrl.startsWith('../')) {
     newUrl = newUrl.substring(3);
@@ -105,6 +109,7 @@ function resolveUrl(url) {
 
 // ---------- UI helpers ----------
 function changeBackground(bgUrl) {
+  console.log('Changing background to:', bgUrl);
   currentBg.style.backgroundImage = `url(${bgUrl})`;
 }
 
@@ -136,7 +141,6 @@ function loadContent(absolutePath) {
   if (cache.has(normalizedPath)) {
     const galleryHtml = cache.get(normalizedPath);
     showContent(galleryHtml);
-    // Replace current history state with one that contains the gallery HTML for back navigation
     history.replaceState({ type: 'character_gallery', galleryHTML: galleryHtml }, '', normalizedPath);
   } else {
     fetch(normalizedPath)
@@ -150,7 +154,6 @@ function loadContent(absolutePath) {
         const transformedHtml = makePathsAbsolute(galleryHtml);
         cache.set(normalizedPath, transformedHtml);
         showContent(transformedHtml);
-        // Replace current history state with one that contains the gallery HTML
         history.replaceState({ type: 'character_gallery', galleryHTML: transformedHtml }, '', normalizedPath);
       })
       .catch(err => {
@@ -175,6 +178,9 @@ function attachVoicelineListeners() {
       const parentLink = img.closest('.character-voice');
       const currentGalleryHTML = dynamicContent.innerHTML;
 
+      // Log the raw background attribute for debugging
+      console.log('Background attribute:', parentLink.dataset.background);
+
       const detailState = {
         type: 'voiceline',
         characterGalleryHTML: currentGalleryHTML,
@@ -190,7 +196,8 @@ function attachVoicelineListeners() {
         background: resolveUrl(parentLink.dataset.background)
       };
 
-      // Use normalized current path
+      console.log('Detail background after resolveUrl:', detailState.background);
+
       const currentPath = normalizePath(window.location.pathname);
       history.pushState(detailState, '', currentPath);
       showVoicelineDetailFromData(detailState);
@@ -198,7 +205,7 @@ function attachVoicelineListeners() {
   });
 }
 
-// Rebuild voiceline detail view (keep your existing implementation)
+// Rebuild voiceline detail view
 function showVoicelineDetailFromData(data) {
   const voicelines = (data.voicelines || "").split('|').map(v => v.trim());
   const translations = (data.translations || "").split('|').map(v => v.trim());
@@ -238,7 +245,10 @@ function showVoicelineDetailFromData(data) {
     `);
   }
 
-  if (data.background) changeBackground(data.background);
+  if (data.background) {
+    console.log('Setting background from voiceline detail:', data.background);
+    changeBackground(data.background);
+  }
 
   const detailHTML = `
     <div class="voiceline-detail">
@@ -319,7 +329,6 @@ galleryLinks.forEach(link => {
     let href = link.getAttribute('href');
     const bgImage = link.dataset.background;
 
-    // Normalize both
     const normalizedHref = normalizePath(href);
     const normalizedBg = normalizePath(bgImage);
 
@@ -345,7 +354,6 @@ function loadInitialPage() {
   const normalizedPath = normalizePath(path);
   console.log('loadInitialPage - original path:', path, 'normalized:', normalizedPath);
 
-  // If there's already a state (e.g., after refresh with a state), handle it
   if (history.state) {
     const state = history.state;
     if (state.type === 'voiceline') {
@@ -359,7 +367,6 @@ function loadInitialPage() {
     }
   }
 
-  // If dynamicContent already has content (direct character page load)
   if (dynamicContent.innerHTML.trim() !== '') {
     console.log('Initial content already present, transforming paths');
     const existingHtml = dynamicContent.innerHTML;
@@ -368,7 +375,6 @@ function loadInitialPage() {
     gallery.style.display = 'none';
     dynamicContent.classList.add('visible');
     attachVoicelineListeners();
-    // Replace the current history entry with a proper state, using normalized path
     history.replaceState({ type: 'character_gallery', galleryHTML: transformed }, '', normalizedPath);
     return;
   }
@@ -379,7 +385,6 @@ function loadInitialPage() {
     const entry = pageMap.get(normalizedPath);
     if (entry) {
       changeBackground(entry.bg);
-      // Push a temporary state; will be replaced after load
       history.replaceState({ type: 'character' }, '', normalizedPath);
       loadContent(normalizedPath);
     } else {
@@ -394,7 +399,7 @@ function preloadAllGalleryAssets() {
   document.querySelectorAll('.image-gallery a').forEach(link => {
     const bg = normalizePath(link.dataset.background);
     new Image().src = bg;
-    const imgSrc = link.querySelector('img').src; // might already be absolute
+    const imgSrc = link.querySelector('img').src;
     new Image().src = imgSrc;
   });
 
