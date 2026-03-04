@@ -1,6 +1,6 @@
 // ---------- Page header content (update these to change all pages) ----------
 const PAGE_HEADER = "LCB Identities - Untranslated Voicelines Translated to English & Unused Voicelines";
-const LAST_UPDATED = "Updated Mar 6th, 2026 (UPDATING WEBSITE BEWARE FOR ERRORS FOR NOW!!!!) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
+const LAST_UPDATED = "Updated Mar 5th, 2026 (UPDATING WEBSITE BEWARE FOR ERRORS FOR NOW!!!!) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
 
 // ---------- Determine base path for assets (for internal use) ----------
 const isGitHubPages = window.location.hostname.includes('github.io');
@@ -196,6 +196,7 @@ function attachVoicelineListeners() {
       const currentGalleryHTML = dynamicContent.innerHTML;
 
       console.log('Background attribute:', parentLink.dataset.background);
+      console.log('data-page attribute:', parentLink.dataset.page); // Debug: log the page class
 
       const detailState = {
         type: 'voiceline',
@@ -214,6 +215,7 @@ function attachVoicelineListeners() {
       };
 
       console.log('Detail background after resolveUrl:', detailState.background);
+      console.log('Page class to apply:', detailState.pageClass); // Debug
 
       const currentPath = normalizePath(window.location.pathname);
       history.pushState(detailState, '', currentPath);
@@ -229,6 +231,8 @@ function showVoicelineDetailFromData(data) {
   const audios = (data.audios || "").split('|').map(v => v.trim());
   const notes = (data.notes || "").split('|').map(v => v.trim());
   const pageClass = data.pageClass || ''; // e.g., "Sinclair-page"
+
+  console.log('Rendering voiceline detail with pageClass:', pageClass); // Debug
 
   let rows = [];
   for (let i = 0; i < translations.length; i++) {
@@ -289,6 +293,10 @@ function showVoicelineDetailFromData(data) {
     </div>
   `;
   dynamicContent.innerHTML = detailHTML;
+
+  // After inserting, log the resulting element's class list to verify
+  const detailEl = document.querySelector('.voiceline-detail');
+  console.log('Detail element classes after render:', detailEl ? detailEl.className : 'not found');
 }
 
 // ---------- History handling ----------
