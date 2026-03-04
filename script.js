@@ -37,9 +37,21 @@ function normalizePath(path) {
   return BASE_PATH + path;
 }
 
-// ---------- Set background from current path ----------
+// ---------- Set background from current path, with fallback construction ----------
 function setCharacterBackgroundFromPath(path) {
-  const entry = pageMap.get(normalizePath(path));
+  const normalized = normalizePath(path);
+  let entry = pageMap.get(normalized);
+  if (!entry) {
+    // Fallback: construct background URL from the filename
+    const parts = normalized.split('/');
+    const fileName = parts[parts.length - 1]; // e.g., "Faust.html"
+    const charName = fileName.replace('.html', ''); // e.g., "Faust"
+    // Special handling for characters with special characters (they already match)
+    const bgPath = BASE_PATH + 'assets/' + charName + '/LCB_' + charName + '.png';
+    console.log('Using fallback background for', charName, bgPath);
+    changeBackground(bgPath);
+    return;
+  }
   if (entry && entry.bg) {
     changeBackground(entry.bg);
   } else {
@@ -85,6 +97,7 @@ function resolveUrl(url) {
 
 // ---------- UI helpers ----------
 function changeBackground(bgUrl) {
+  console.log('Changing background to:', bgUrl);
   currentBg.style.backgroundImage = `url(${bgUrl})`;
 }
 
@@ -100,7 +113,7 @@ function showContent(html) {
   gallery.style.display = 'none';
   dynamicContent.innerHTML = html;
   dynamicContent.classList.add('visible');
-  // No need to preload here – it's handled separately
+  // No preload here – handled elsewhere
 
   const charGallery = dynamicContent.querySelector('.character-gallery');
   if (charGallery) attachVoicelineListeners();
@@ -108,6 +121,7 @@ function showContent(html) {
 
 function loadContent(absolutePath) {
   const normalizedPath = normalizePath(absolutePath);
+  console.log('loadContent, normalizedPath:', normalizedPath);
   if (cache.has(normalizedPath)) {
     showContent(cache.get(normalizedPath));
     history.replaceState({ type: 'character_gallery', galleryHTML: cache.get(normalizedPath) }, '', normalizedPath);
@@ -139,8 +153,7 @@ function getPageClassFromURL() {
   const path = window.location.pathname;
   const parts = path.split('/');
   const fileName = parts[parts.length - 1]; // e.g., "Faust.html"
-  const name = fileName.replace('.html', ''); // e.g., "Faust"
-  // Special handling for Ryōshū (already matches) and Don_Quixote (already matches)
+  const name = fileName.replace('.html', '');
   return name + '-page';
 }
 
@@ -159,7 +172,6 @@ function attachVoicelineListeners() {
       const parentLink = img.closest('.character-voice');
       const currentGalleryHTML = dynamicContent.innerHTML;
 
-      // Use data-page if present, otherwise fallback to URL-based class
       let pageClass = parentLink.dataset.page;
       if (!pageClass) {
         pageClass = getPageClassFromURL();
@@ -249,8 +261,12 @@ function showVoicelineDetailFromData(data) {
 window.addEventListener('popstate', (event) => {
   const path = window.location.pathname;
   const state = event.state;
+  console.log('popstate - path:', path, 'state:', state);
 
-  if (!state) { showMainGallery(); return; }
+  if (!state) {
+    showMainGallery();
+    return;
+  }
 
   if (state.type === 'voiceline') {
     showVoicelineDetailFromData(state);
@@ -264,7 +280,7 @@ window.addEventListener('popstate', (event) => {
     return;
   }
 
-  // Fallback
+  // Fallback for old character state (should not happen)
   const normalizedPath = normalizePath(path);
   const entry = pageMap.get(normalizedPath);
   if (entry) {
@@ -344,17 +360,20 @@ function loadInitialPage() {
       history.replaceState({ type: 'character' }, '', normalizedPath);
       loadContent(normalizedPath);
     } else {
-      showMainGallery();
+      // Fallback: construct background from path
+      setCharacterBackgroundFromPath(normalizedPath);
+      history.replaceState({ type: 'character' }, '', normalizedPath);
+      loadContent(normalizedPath);
     }
   }
 }
 
-// ---------- Preload assets (absolute paths only, no 404s) ----------
+// ---------- Preload assets (absolute paths only) ----------
 function preloadMainGalleryIcons() {
   document.querySelectorAll('.image-gallery a').forEach(link => {
-    const bg = link.dataset.background; // absolute
+    const bg = link.dataset.background;
     new Image().src = bg;
-    const icon = link.querySelector('img').src; // absolute
+    const icon = link.querySelector('img').src;
     new Image().src = icon;
   });
 }
