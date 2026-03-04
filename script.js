@@ -1,11 +1,28 @@
 // ---------- Page header content (update these to change all pages) ----------
 const PAGE_HEADER = "LCB Identities - Untranslated Voicelines Translated to English & Unused Voicelines";
-const LAST_UPDATED = "Updated Mar 4th, 2026 (UPDATING WEBSITE BEWARE FOR ERRORS FOR NOW) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
+const LAST_UPDATED = "Updated Mar 4th, 2026 (UPDATING WEBSITE BEWARE FOR ERRORS FOR NOW!) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
 
 // ---------- Determine base path (for GitHub Pages subdirectory) ----------
-const scriptTag = document.querySelector('script[src*="script.js"]');
-const scriptSrc = scriptTag ? scriptTag.src : '';
-const BASE_PATH = scriptSrc.substring(0, scriptSrc.lastIndexOf('/') + 1);
+function getBasePath() {
+  // Try to get base from script src first
+  const scriptTag = document.querySelector('script[src*="script.js"]');
+  if (scriptTag) {
+    const scriptSrc = scriptTag.src;
+    const lastSlash = scriptSrc.lastIndexOf('/');
+    if (lastSlash !== -1) {
+      return scriptSrc.substring(0, lastSlash + 1);
+    }
+  }
+  // Fallback: use current path up to '/pages/' if present
+  const path = window.location.pathname;
+  const pagesIndex = path.indexOf('/pages/');
+  if (pagesIndex !== -1) {
+    return path.substring(0, pagesIndex + 1);
+  }
+  // Otherwise assume root
+  return '/';
+}
+const BASE_PATH = getBasePath();
 console.log('Base path:', BASE_PATH); // Should be "/LCB-ID-TLs/"
 
 // ---------- Determine base path for assets (for sounds only) ----------
@@ -279,7 +296,8 @@ window.addEventListener('popstate', (event) => {
 galleryLinks.forEach(link => {
   const img = link.querySelector('img');
   img.addEventListener('click', (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Stop normal navigation
+    console.log('Gallery link clicked'); // Debug
 
     if (canClickPlay) {
       clickSound.currentTime = 0;
