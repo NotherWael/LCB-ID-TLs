@@ -11,7 +11,7 @@ const BASE_PATH = (() => {
 
 // ---------- Page header content ----------
 const PAGE_HEADER = "LCB Identities - Untranslated Voicelines Translated to English & Unused Voicelines";
-const LAST_UPDATED = "Updated Feb 22nd, 2026 (Added The Index Nursefather Yi Sang!) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
+const LAST_UPDATED = "Updated Mar 4th, 2026 (Added The Index Nursefather Yi Sang!) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
 
 // ---------- Determine base path for assets (for sounds only) ----------
 const getAssetPath = (relativePath) => {
