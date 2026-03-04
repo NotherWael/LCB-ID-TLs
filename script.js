@@ -143,8 +143,12 @@ function attachVoicelineListeners() {
       }
 
       const parentLink = img.closest('.character-voice');
+      // Store the current gallery HTML so we can restore it when going back
+      const currentGalleryHTML = dynamicContent.innerHTML;
+
       const detailState = {
         type: 'voiceline',
+        characterGalleryHTML: currentGalleryHTML, // saved for back navigation
         imgSrc: img.src,
         imgAlt: img.alt,
         charTitle: parentLink.dataset.characterTitle,
@@ -230,15 +234,23 @@ function showVoicelineDetailFromData(data) {
 
 // ---------- History handling ----------
 window.addEventListener('popstate', (event) => {
-  const path = window.location.pathname; // includes base path
+  const path = window.location.pathname;
   const state = event.state;
 
   if (state && state.type === 'voiceline') {
+    // Coming back to a voiceline from a forward/back action
     showVoicelineDetailFromData(state);
     gallery.style.display = 'none';
     return;
   }
 
+  // If the state contains characterGalleryHTML, restore it directly (back from voiceline)
+  if (state && state.characterGalleryHTML) {
+    showContent(state.characterGalleryHTML);
+    return;
+  }
+
+  // Otherwise, handle normal URL navigation
   if (path === BASE_PATH || path === BASE_PATH + 'index.html') {
     showMainGallery();
   } else {
@@ -297,6 +309,21 @@ function loadInitialPage() {
   }
 
   if (dynamicContent.innerHTML.trim() !== '') {
+    // If the content is a voiceline detail, we need to set up history properly
+    if (dynamicContent.querySelector('.voiceline-detail')) {
+      // This is a direct load on a voiceline detail page (shouldn't happen normally, but handle it)
+      // We'll treat it as a character page with no history
+      const galleryHtml = dynamicContent.innerHTML; // but it's not gallery, so this is wrong.
+      // Better: reload the character page via URL
+      const entry = pageMap.get(path);
+      if (entry) {
+        changeBackground(entry.bg);
+        loadContent(path);
+      }
+      return;
+    }
+
+    // Otherwise, it's a character gallery directly loaded
     const existingHtml = dynamicContent.innerHTML;
     const transformed = makePathsAbsolute(existingHtml);
     dynamicContent.innerHTML = transformed;
