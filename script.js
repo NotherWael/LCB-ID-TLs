@@ -1,6 +1,6 @@
 // ---------- Page header content (update these to change all pages) ----------
 const PAGE_HEADER = "LCB Identities - Untranslated Voicelines Translated to English & Unused Voicelines";
-const LAST_UPDATED = "Updated Mar 5th, 2026 (UPDATING WEBSITE BEWARE FOR ERRORS FOR NOW!!!!) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
+const LAST_UPDATED = "Updated Mar 4th, 2026 (UPDATING WEBSITE BEWARE FOR ERRORS FOR NOW!!!!) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
 
 // ---------- Determine base path (GitHub Pages subdirectory) ----------
 const isGitHubPages = window.location.hostname.includes('github.io');
@@ -18,6 +18,7 @@ const cache = new Map();
 const gallery = document.querySelector('.image-gallery');
 const galleryLinks = document.querySelectorAll('.image-gallery a');
 const dynamicContent = document.getElementById('dynamic-content');
+const backButton = document.getElementById('back-button');
 const currentBg = document.getElementById('current-bg');
 
 // Build pageMap from the hidden gallery (paths must be absolute, e.g., "/LCB-ID-TLs/pages/Yi_Sang.html")
@@ -104,6 +105,7 @@ function showMainGallery() {
   dynamicContent.innerHTML = '';
   dynamicContent.classList.remove('visible');
   gallery.style.display = 'grid';
+  backButton.style.display = 'none';
   changeBackground(BASE_PATH + 'assets/background.png');
   history.replaceState(null, '', BASE_PATH);
 }
@@ -112,7 +114,7 @@ function showContent(html) {
   gallery.style.display = 'none';
   dynamicContent.innerHTML = html;
   dynamicContent.classList.add('visible');
-  // Attach hover sounds and voiceline listeners to the new content
+  backButton.style.display = 'block';
   attachImageHoverSounds();
   const charGallery = dynamicContent.querySelector('.character-gallery');
   if (charGallery) attachVoicelineListeners();
@@ -121,7 +123,6 @@ function showContent(html) {
 // Attach hover sounds to all images in dynamic content
 function attachImageHoverSounds() {
   dynamicContent.querySelectorAll('img').forEach(img => {
-    // Remove old listener to avoid duplicates
     img.removeEventListener('mouseenter', hoverHandler);
     img.addEventListener('mouseenter', hoverHandler);
   });
@@ -270,9 +271,19 @@ function showVoicelineDetailFromData(data) {
     </div>
   `;
   dynamicContent.innerHTML = detailHTML;
-  // Reattach hover sounds to the new detail view images
   attachImageHoverSounds();
 }
+
+// ---------- Back button click handler ----------
+backButton.addEventListener('click', () => {
+  clickSound.currentTime = 0;
+  clickSound.play().catch(console.warn);
+  if (history.length > 1) {
+    history.back();
+  } else {
+    window.location.href = BASE_PATH; // Go to index if no history
+  }
+});
 
 // ---------- History handling ----------
 window.addEventListener('popstate', (event) => {
@@ -288,6 +299,7 @@ window.addEventListener('popstate', (event) => {
   if (state.type === 'voiceline') {
     showVoicelineDetailFromData(state);
     gallery.style.display = 'none';
+    backButton.style.display = 'block';
     return;
   }
 
@@ -339,6 +351,7 @@ function loadInitialPage() {
     if (state.type === 'voiceline') {
       showVoicelineDetailFromData(state);
       gallery.style.display = 'none';
+      backButton.style.display = 'block';
       return;
     }
     if (state.type === 'character_gallery') {
@@ -354,6 +367,7 @@ function loadInitialPage() {
     dynamicContent.innerHTML = transformed;
     gallery.style.display = 'none';
     dynamicContent.classList.add('visible');
+    backButton.style.display = 'block';
     attachImageHoverSounds();
     attachVoicelineListeners();
     history.replaceState({ type: 'character_gallery', galleryHTML: transformed }, '', normalizedPath);
@@ -367,11 +381,13 @@ function loadInitialPage() {
     const entry = pageMap.get(normalizedPath);
     if (entry) {
       changeBackground(entry.bg);
+      backButton.style.display = 'block';
       history.replaceState({ type: 'character' }, '', normalizedPath);
       loadContent(normalizedPath);
     } else {
       // Fallback: construct background from path
       setCharacterBackgroundFromPath(normalizedPath);
+      backButton.style.display = 'block';
       history.replaceState({ type: 'character' }, '', normalizedPath);
       loadContent(normalizedPath);
     }
