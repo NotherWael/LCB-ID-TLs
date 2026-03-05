@@ -18,9 +18,6 @@ const cache = new Map();
 // Store the last character gallery HTML for back navigation from detail
 let lastCharacterGalleryHTML = null;
 
-// Track current background URL to avoid duplicate changes
-let currentBackgroundUrl = BASE_PATH + 'assets/background.png';
-
 const gallery = document.querySelector('.image-gallery');
 const galleryLinks = document.querySelectorAll('.image-gallery a');
 const dynamicContent = document.getElementById('dynamic-content');
@@ -44,13 +41,14 @@ function normalizePath(path) {
   return BASE_PATH + path;
 }
 
-// ---------- Preload an image ----------
-function preloadImage(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = resolve;
-    img.onerror = reject;
-    img.src = url;
+// ---------- Preload all character backgrounds on page load ----------
+function preloadAllBackgrounds() {
+  galleryLinks.forEach(link => {
+    const bg = link.dataset.background;
+    if (bg) {
+      const img = new Image();
+      img.src = bg;
+    }
   });
 }
 
@@ -71,17 +69,7 @@ function setCharacterBackgroundFromPath(path) {
   } else {
     newBgUrl = BASE_PATH + 'assets/background.png';
   }
-
-  // Only change if different from current
-  if (newBgUrl && newBgUrl !== currentBackgroundUrl) {
-    // Preload the new background before changing
-    preloadImage(newBgUrl).then(() => {
-      changeBackground(newBgUrl);
-    }).catch(() => {
-      // If preload fails, still try to change (maybe network issue)
-      changeBackground(newBgUrl);
-    });
-  }
+  changeBackground(newBgUrl);
 }
 
 // ---------- Transform relative paths inside a character gallery to absolute ----------
@@ -122,9 +110,7 @@ function resolveUrl(url) {
 
 // ---------- UI helpers ----------
 function changeBackground(bgUrl) {
-  if (bgUrl === currentBackgroundUrl) return; // No change
   console.log('Changing background to:', bgUrl);
-  currentBackgroundUrl = bgUrl;
   currentBg.style.backgroundImage = `url(${bgUrl})`;
 }
 
@@ -181,7 +167,6 @@ function loadContent(absolutePath) {
   if (cache.has(normalizedPath)) {
     showContent(cache.get(normalizedPath));
     history.replaceState({ type: 'character_gallery', galleryHTML: cache.get(normalizedPath) }, '', normalizedPath);
-    // Background already set by click handler, no need to set again
   } else {
     fetch(normalizedPath)
       .then(response => response.text())
@@ -195,7 +180,6 @@ function loadContent(absolutePath) {
         cache.set(normalizedPath, transformedHtml);
         showContent(transformedHtml);
         history.replaceState({ type: 'character_gallery', galleryHTML: transformedHtml }, '', normalizedPath);
-        // Background already set
       })
       .catch(err => {
         dynamicContent.innerHTML = "<p>Error loading content.</p>";
@@ -296,14 +280,7 @@ function showVoicelineDetailFromData(data) {
   }
 
   if (data.background) {
-    // Preload and set background
-    if (data.background !== currentBackgroundUrl) {
-      preloadImage(data.background).then(() => {
-        changeBackground(data.background);
-      }).catch(() => {
-        changeBackground(data.background);
-      });
-    }
+    changeBackground(data.background);
   }
 
   const detailHTML = `
@@ -399,14 +376,8 @@ galleryLinks.forEach(link => {
     const href = link.getAttribute('href');
     const bgImage = link.dataset.background;
 
-    // Set background immediately with preload
-    if (bgImage && bgImage !== currentBackgroundUrl) {
-      preloadImage(bgImage).then(() => {
-        changeBackground(bgImage);
-      }).catch(() => {
-        changeBackground(bgImage);
-      });
-    }
+    // Set background immediately (images are preloaded, so it's instant)
+    if (bgImage) changeBackground(bgImage);
 
     history.pushState({ type: 'character' }, '', href);
     loadContent(href);
@@ -487,6 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (headerEl) headerEl.innerHTML = PAGE_HEADER;
   if (updatedEl) updatedEl.innerHTML = LAST_UPDATED;
 
+  preloadAllBackgrounds(); // Preload all character backgrounds
   preloadMainGalleryIcons();
   attachMainGalleryHoverSounds(); // Add hover sounds to main gallery
   loadInitialPage();
