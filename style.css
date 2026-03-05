@@ -88,20 +88,16 @@ button,
 }
 
 .overlay {
-  position: static; /* Add this */
-  background-color: rgba(0, 0, 0, 0.7);
-  min-height: 100vh;
-  margin: 0 auto;
-  padding: 40px 20px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.overlay:not(:has(#dynamic-content.visible)) {
-  background-color: rgba(0, 0, 0, 0) !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background-color: rgba(0, 0, 0, 0.7); /* Dark overlay always on */
 }
 
 .content {
