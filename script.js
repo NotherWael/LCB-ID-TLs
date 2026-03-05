@@ -41,8 +41,9 @@ function normalizePath(path) {
   return BASE_PATH + path;
 }
 
-// ---------- Preload all character backgrounds on page load ----------
+// ---------- Preload all character backgrounds and main background on page load ----------
 function preloadAllBackgrounds() {
+  // Preload character backgrounds
   galleryLinks.forEach(link => {
     const bg = link.dataset.background;
     if (bg) {
@@ -50,6 +51,11 @@ function preloadAllBackgrounds() {
       img.src = bg;
     }
   });
+  // Preload main background
+  const mainBg = new Image();
+  mainBg.onload = () => console.log('Main background loaded successfully');
+  mainBg.onerror = () => console.error('Failed to load main background:', BASE_PATH + 'assets/background.png');
+  mainBg.src = BASE_PATH + 'assets/background.png';
 }
 
 // ---------- Set background from current path, with fallback construction ----------
@@ -458,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (headerEl) headerEl.innerHTML = PAGE_HEADER;
   if (updatedEl) updatedEl.innerHTML = LAST_UPDATED;
 
-  preloadAllBackgrounds(); // Preload all character backgrounds
+  preloadAllBackgrounds(); // Preload all character backgrounds and main background
   preloadMainGalleryIcons();
   attachMainGalleryHoverSounds(); // Add hover sounds to main gallery
   loadInitialPage();
