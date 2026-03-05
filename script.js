@@ -15,6 +15,9 @@ clickSound.volume = 0.8;
 let canClickPlay = true;
 const cache = new Map();
 
+// Store the last character gallery HTML for back navigation from detail
+let lastCharacterGalleryHTML = null;
+
 const gallery = document.querySelector('.image-gallery');
 const galleryLinks = document.querySelectorAll('.image-gallery a');
 const dynamicContent = document.getElementById('dynamic-content');
@@ -115,6 +118,10 @@ function showContent(html) {
   dynamicContent.innerHTML = html;
   dynamicContent.classList.add('visible');
   backButton.style.display = 'block';
+  // If this is a character gallery (not a voiceline detail), update lastCharacterGalleryHTML
+  if (html.includes('character-gallery') && !html.includes('voiceline-detail')) {
+    lastCharacterGalleryHTML = html;
+  }
   attachImageHoverSounds();
   const charGallery = dynamicContent.querySelector('.character-gallery');
   if (charGallery) attachVoicelineListeners();
@@ -274,14 +281,24 @@ function showVoicelineDetailFromData(data) {
   attachImageHoverSounds();
 }
 
-// ---------- Back button click handler ----------
+// ---------- Back button click handler: up‑one‑level navigation ----------
 backButton.addEventListener('click', () => {
   clickSound.currentTime = 0;
   clickSound.play().catch(console.warn);
-  if (history.length > 1) {
-    history.back();
+
+  if (dynamicContent.querySelector('.voiceline-detail')) {
+    // Currently in a voiceline detail: go back to the character gallery
+    if (lastCharacterGalleryHTML) {
+      showContent(lastCharacterGalleryHTML);
+      // Update background from the current URL (which hasn't changed)
+      setCharacterBackgroundFromPath(window.location.pathname);
+    } else {
+      // Fallback: if no stored gallery, go to main index
+      showMainGallery();
+    }
   } else {
-    window.location.href = BASE_PATH; // Go to index if no history
+    // On a character gallery or main gallery: go to main index
+    showMainGallery();
   }
 });
 
@@ -370,6 +387,10 @@ function loadInitialPage() {
     backButton.style.display = 'block';
     attachImageHoverSounds();
     attachVoicelineListeners();
+    // If this is a character gallery, store it
+    if (transformed.includes('character-gallery') && !transformed.includes('voiceline-detail')) {
+      lastCharacterGalleryHTML = transformed;
+    }
     history.replaceState({ type: 'character_gallery', galleryHTML: transformed }, '', normalizedPath);
     setCharacterBackgroundFromPath(normalizedPath);
     return;
