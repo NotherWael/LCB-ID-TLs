@@ -121,6 +121,7 @@ function showContent(html) {
   // If this is a character gallery (not a voiceline detail), update lastCharacterGalleryHTML
   if (html.includes('character-gallery') && !html.includes('voiceline-detail')) {
     lastCharacterGalleryHTML = html;
+    console.log('Stored character gallery HTML');
   }
   attachImageHoverSounds();
   const charGallery = dynamicContent.querySelector('.character-gallery');
@@ -233,6 +234,8 @@ function showVoicelineDetailFromData(data) {
   const notes = (data.notes || "").split('|').map(v => v.trim());
   const pageClass = data.pageClass || '';
 
+  console.log('Rendering voiceline detail with class:', pageClass);
+
   let rows = [];
   for (let i = 0; i < translations.length; i++) {
     const audioEntry = audios[i] || '';
@@ -288,16 +291,18 @@ backButton.addEventListener('click', () => {
 
   if (dynamicContent.querySelector('.voiceline-detail')) {
     // Currently in a voiceline detail: go back to the character gallery
+    console.log('Back: from detail to gallery');
     if (lastCharacterGalleryHTML) {
       showContent(lastCharacterGalleryHTML);
       // Update background from the current URL (which hasn't changed)
       setCharacterBackgroundFromPath(window.location.pathname);
     } else {
-      // Fallback: if no stored gallery, go to main index
+      console.log('No stored gallery, going to main index');
       showMainGallery();
     }
   } else {
     // On a character gallery or main gallery: go to main index
+    console.log('Back: from gallery to main index');
     showMainGallery();
   }
 });
@@ -390,6 +395,7 @@ function loadInitialPage() {
     // If this is a character gallery, store it
     if (transformed.includes('character-gallery') && !transformed.includes('voiceline-detail')) {
       lastCharacterGalleryHTML = transformed;
+      console.log('Stored initial character gallery');
     }
     history.replaceState({ type: 'character_gallery', galleryHTML: transformed }, '', normalizedPath);
     setCharacterBackgroundFromPath(normalizedPath);
