@@ -18,6 +18,9 @@ const cache = new Map();
 // Store the last character gallery HTML for back navigation from detail
 let lastCharacterGalleryHTML = null;
 
+// Track current background URL to avoid duplicate changes
+let currentBackgroundUrl = BASE_PATH + 'assets/background.png';
+
 const gallery = document.querySelector('.image-gallery');
 const galleryLinks = document.querySelectorAll('.image-gallery a');
 const dynamicContent = document.getElementById('dynamic-content');
@@ -41,24 +44,43 @@ function normalizePath(path) {
   return BASE_PATH + path;
 }
 
+// ---------- Preload an image ----------
+function preloadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = resolve;
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 // ---------- Set background from current path, with fallback construction ----------
 function setCharacterBackgroundFromPath(path) {
   const normalized = normalizePath(path);
   let entry = pageMap.get(normalized);
+  let newBgUrl;
   if (!entry) {
     // Fallback: construct background URL from the filename
     const parts = normalized.split('/');
     const fileName = parts[parts.length - 1]; // e.g., "Faust.html"
     const charName = fileName.replace('.html', ''); // e.g., "Faust"
-    const bgPath = BASE_PATH + 'assets/' + charName + '/LCB_' + charName + '.png';
-    console.log('Using fallback background for', charName, bgPath);
-    changeBackground(bgPath);
-    return;
-  }
-  if (entry && entry.bg) {
-    changeBackground(entry.bg);
+    newBgUrl = BASE_PATH + 'assets/' + charName + '/LCB_' + charName + '.png';
+    console.log('Using fallback background for', charName, newBgUrl);
+  } else if (entry && entry.bg) {
+    newBgUrl = entry.bg;
   } else {
-    changeBackground(BASE_PATH + 'assets/background.png');
+    newBgUrl = BASE_PATH + 'assets/background.png';
+  }
+
+  // Only change if different from current
+  if (newBgUrl && newBgUrl !== currentBackgroundUrl) {
+    // Preload the new background before changing
+    preloadImage(newBgUrl).then(() => {
+      changeBackground(newBgUrl);
+    }).catch(() => {
+      // If preload fails, still try to change (maybe network issue)
+      changeBackground(newBgUrl);
+    });
   }
 }
 
@@ -100,7 +122,9 @@ function resolveUrl(url) {
 
 // ---------- UI helpers ----------
 function changeBackground(bgUrl) {
+  if (bgUrl === currentBackgroundUrl) return; // No change
   console.log('Changing background to:', bgUrl);
+  currentBackgroundUrl = bgUrl;
   currentBg.style.backgroundImage = `url(${bgUrl})`;
 }
 
@@ -157,7 +181,7 @@ function loadContent(absolutePath) {
   if (cache.has(normalizedPath)) {
     showContent(cache.get(normalizedPath));
     history.replaceState({ type: 'character_gallery', galleryHTML: cache.get(normalizedPath) }, '', normalizedPath);
-    setCharacterBackgroundFromPath(normalizedPath);
+    // Background already set by click handler, no need to set again
   } else {
     fetch(normalizedPath)
       .then(response => response.text())
@@ -171,7 +195,7 @@ function loadContent(absolutePath) {
         cache.set(normalizedPath, transformedHtml);
         showContent(transformedHtml);
         history.replaceState({ type: 'character_gallery', galleryHTML: transformedHtml }, '', normalizedPath);
-        setCharacterBackgroundFromPath(normalizedPath);
+        // Background already set
       })
       .catch(err => {
         dynamicContent.innerHTML = "<p>Error loading content.</p>";
@@ -271,7 +295,16 @@ function showVoicelineDetailFromData(data) {
     `);
   }
 
-  if (data.background) changeBackground(data.background);
+  if (data.background) {
+    // Preload and set background
+    if (data.background !== currentBackgroundUrl) {
+      preloadImage(data.background).then(() => {
+        changeBackground(data.background);
+      }).catch(() => {
+        changeBackground(data.background);
+      });
+    }
+  }
 
   const detailHTML = `
     <div class="voiceline-detail ${pageClass}">
@@ -366,7 +399,15 @@ galleryLinks.forEach(link => {
     const href = link.getAttribute('href');
     const bgImage = link.dataset.background;
 
-    if (bgImage) changeBackground(bgImage);
+    // Set background immediately with preload
+    if (bgImage && bgImage !== currentBackgroundUrl) {
+      preloadImage(bgImage).then(() => {
+        changeBackground(bgImage);
+      }).catch(() => {
+        changeBackground(bgImage);
+      });
+    }
+
     history.pushState({ type: 'character' }, '', href);
     loadContent(href);
   });
