@@ -123,7 +123,7 @@ function showContent(html) {
     lastCharacterGalleryHTML = html;
     console.log('Stored character gallery HTML');
   }
-  attachImageHoverSounds();
+  attachImageHoverSounds(); // for dynamic content images
   const charGallery = dynamicContent.querySelector('.character-gallery');
   if (charGallery) attachVoicelineListeners();
 }
@@ -136,9 +136,18 @@ function attachImageHoverSounds() {
   });
 }
 
+// Hover handler for all images
 function hoverHandler(e) {
   const hoverSound = hoverSoundTemplate.cloneNode();
   hoverSound.play().catch(() => {});
+}
+
+// Attach hover sounds to main gallery images (static)
+function attachMainGalleryHoverSounds() {
+  document.querySelectorAll('.image-gallery img').forEach(img => {
+    img.removeEventListener('mouseenter', hoverHandler);
+    img.addEventListener('mouseenter', hoverHandler);
+  });
 }
 
 // Load a character page using its absolute path
@@ -438,5 +447,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (updatedEl) updatedEl.innerHTML = LAST_UPDATED;
 
   preloadMainGalleryIcons();
+  attachMainGalleryHoverSounds(); // Add hover sounds to main gallery
   loadInitialPage();
 });
