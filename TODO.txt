@@ -1,4 +1,0 @@
-Add Season/Standard Tags + Which Season Released
-Add Switch Art
-Add Spoiler Warnings
-Add Mobile Support
