@@ -1,6 +1,6 @@
 // ---------- Page header content (update these to change all pages) ----------
 const PAGE_HEADER = "LCB Identities - Untranslated Voicelines Translated to English & Unused Voicelines";
-const LAST_UPDATED = "Updated Jul 15th, 2026 (Added The Dawn Office Gregor & Faust, Updated Dawn Office Sinclair) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
+const LAST_UPDATED = "Updated Sep 13th, 2026, Up to Season 7 (Added LCE Dimension Shredder Yi Sang & Cinq East Hong Lu) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)<br>End of Service Use the <a href='https://limbuscompany.wiki.gg/wiki/List_of_Identities' target='_blank'>Wiki's</a> Voiceline Tab Instead.";
 
 // ---------- Determine base path (GitHub Pages subdirectory) ----------
 const isGitHubPages = window.location.hostname.includes('github.io');
