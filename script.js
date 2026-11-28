@@ -1,6 +1,6 @@
 // ---------- Page header content (update these to change all pages) ----------
 const PAGE_HEADER = "LCB Identities - Untranslated Voicelines Translated to English & Unused Voicelines";
-const LAST_UPDATED = "Updated Nov 26th, 2026 (Le Rouge Gregor & Le Noir Yi Sang Added) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
+const LAST_UPDATED = "Updated Nov 28th, 2026 (Le Rouge Gregor & Le Noir Yi Sang Added) - Translations are Unofficial and can be wrong at times...<br>Bad Internet May Cause The Site to Load Really Slow... (Translated by NotherWael)";
 
 // ---------- Determine base path (GitHub Pages subdirectory) ----------
 const isGitHubPages = window.location.hostname.includes('github.io');
